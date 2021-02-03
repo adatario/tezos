@@ -68,6 +68,7 @@ module Types = struct
 
   type parameters = {
     data_dir : string;
+    target : (Block_hash.t * int32) option;
     parent : Name.t option;
     db : Distributed_db.t;
     chain_state : State.Chain.t;
@@ -770,6 +771,30 @@ let on_launch w _ parameters =
     checkpoint_consensus
     (fun target -> update_above_target nv nv.last_incremented_head target) ;
   if nv.bootstrapped then Lwt.wakeup_later nv.bootstrapped_wakener () ;
+  let initialize_target =
+    let initialized = ref false in
+    fun peer ->
+      if !initialized then Lwt.return_unit
+      else
+        match parameters.target with
+        | None ->
+            Lwt.return_unit
+        | Some (hash, _lvl) -> (
+            Distributed_db.Block_header.fetch
+              ~peer
+              parameters.chain_db
+              ~timeout:(Ptime.Span.of_int_s 5)
+              hash
+              ()
+            >>= function
+            | Ok header ->
+                initialized := true ;
+                update_above_target nv nv.last_incremented_head header ;
+                Bootstrapper.notify_target bootstrapper ~target:header ;
+                Lwt.return_unit
+            | Error _ ->
+                Lwt.return_unit )
+  in
   Distributed_db.set_callback
     parameters.chain_db
     {
@@ -788,6 +813,8 @@ let on_launch w _ parameters =
             (fun () ->
               let (block, _) = (locator : Block_locator.t :> _ * _) in
               check_and_update_synchronisation_state w (block, peer_id)
+              >>= fun () ->
+              initialize_target peer_id
               >>= fun () ->
               with_activated_peer_validator w peer_id (fun pv ->
                   Peer_validator.notify_branch pv locator ;
@@ -850,12 +877,13 @@ let on_launch w _ parameters =
     } ;
   return nv
 
-let rec create ~data_dir ~start_testchain ~active_chains ?parent
+let rec create ?target ~data_dir ~start_testchain ~active_chains ?parent
     ~block_validator_process start_prevalidator peer_validator_limits
     prevalidator_limits block_validator global_valid_block_input
     global_chains_input db chain_state limits =
   let spawn_child ~parent epv pvl pl bl gvbi gci db n l =
     create
+      ?target
       ~data_dir
       ~start_testchain
       ~active_chains
@@ -890,6 +918,7 @@ let rec create ~data_dir ~start_testchain ~active_chains ?parent
   let parameters =
     {
       data_dir;
+      target;
       parent;
       peer_validator_limits;
       start_prevalidator;
@@ -919,12 +948,13 @@ let rec create ~data_dir ~start_testchain ~active_chains ?parent
 
 (** Current block computation *)
 
-let create ~data_dir ~start_prevalidator ~start_testchain ~active_chains
-    ~block_validator_process peer_validator_limits prevalidator_limits
-    block_validator global_valid_block_input global_chains_input global_db
-    state limits =
+let create ?target ~data_dir ~start_prevalidator ~start_testchain
+    ~active_chains ~block_validator_process peer_validator_limits
+    prevalidator_limits block_validator global_valid_block_input
+    global_chains_input global_db state limits =
   (* hide the optional ?parent *)
   create
+    ?target
     ~data_dir
     ~start_testchain
     ~active_chains
