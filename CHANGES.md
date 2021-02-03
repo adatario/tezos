@@ -12,6 +12,18 @@ here either.
 
 ## Node
 
+- A checkpoint heuristic is used to know whether the current head of
+  the node is late. When the node starts, the heuristic may take some
+  time to find a consensus. To trigger the bootstrapping earlier, the
+  user can use the `--target` option.
+
+- A complete rehaul of the `bootstrapping` phase of the node. The
+  bootstrap is faster and consumes less memory. Moreover, it has a
+  persistent state which avoid to redownload headers that have been
+  fetched already.
+
+- The option `--checkpoint` is replaced by the option `--target`.
+
 - Cap the number of expected connections to `100` on the command line
 
 - Fixes a bug that launched the prevalidator when the node was not
