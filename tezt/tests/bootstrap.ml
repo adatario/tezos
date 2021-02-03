@@ -200,6 +200,92 @@ let check_rpc_force_bootstrapped () =
   let* () = bootstrapped_promise in
   unit
 
+let on_event event =
+  Format.eprintf "Name@.%s@." event.Node.name ;
+  Format.eprintf "Value@.%s@." (JSON.encode event.Node.value)
+
+let blocks_to_bake = 30
+
+let checkpoint_level = 9
+
+let checkpoint_heuristic_started =
+  ( "checkpoint_heuristic_started.v0",
+    fun json ->
+      if JSON.is_object json then Some ()
+      else Test.fail "Encoding of checkpoint_heuristic_started.v0 changed" )
+
+let checkpoint_heuristic_consensus =
+  ( "checkpoint_heuristic_consensus.v0",
+    fun json ->
+      if JSON.is_string json then Some ()
+      else Test.fail "Encoding of checkpoint_heuristic_consensus.v0 changed" )
+
+let bootstrapper_started =
+  ( "bootstrapper_start_bootstrapping.v0",
+    fun json ->
+      Format.eprintf "COUCOU:%d@." JSON.(json |-> "level" |> as_int) ;
+      if JSON.(json |-> "level" |> as_int) = checkpoint_level then Some ()
+      else Test.fail "Encoding of checkpoint_heuristic_consensus.v0 changed" )
+
+let bootstrapper_start_fetching_headers =
+  ( "bootstrapper_start_fetching_headers.v0",
+    fun json ->
+      if JSON.as_int json = checkpoint_level then Some ()
+      else
+        Test.fail "Encoding of bootstrapper_start_fetching_headers.v0 changed"
+  )
+
+let bootstrapper_fetching_headers_ok =
+  ("bootstrapper_fetching_headers_ok.v0", fun _json -> Some ())
+
+let bootstrapper_fetching_operations_ok =
+  ("bootstrapper_fetching_operations_ok.v0", fun _json -> Some ())
+
+let terminated_successfuly =
+  ("bootstrapper_terminated_successfuly.v0", fun _json -> Some ())
+
+let register_event node (event_name, parser) =
+  Node.wait_for node event_name parser
+
+let register_events node events = List.map (register_event node) events
+
+let full_bootstrapper_with_events protocol =
+  let events =
+    [ checkpoint_heuristic_started;
+      checkpoint_heuristic_consensus;
+      bootstrapper_started;
+      bootstrapper_start_fetching_headers;
+      bootstrapper_fetching_headers_ok;
+      bootstrapper_fetching_operations_ok;
+      terminated_successfuly ]
+  in
+  Test.register
+    ~__FILE__
+    ~title:"full bootstrap with events"
+    ~tags:["bootstrap"; "events"]
+  @@ fun () ->
+  Log.info "Start a node." ;
+  let* node =
+    Node.init [Synchronisation_threshold 0; Network "sandbox"; Connections 1]
+  in
+  let* client = Client.init ~node () in
+  let* () = Client.activate_protocol client ~protocol in
+  Log.info "Initializing context with %d empty blocks." (blocks_to_bake + 1) ;
+  let* () = repeat blocks_to_bake (fun () -> Client.bake_for client) in
+  let* _ = Node.wait_for_level node (blocks_to_bake + 1) in
+  Log.info "Initialization completed." ;
+  let* node_bootstrapped = Node.init [Connections 1; Network "sandbox"] in
+  let events_to_wait = register_events node_bootstrapped events in
+  let* () = Client.Admin.trust_address client ~peer:node_bootstrapped in
+  let* () = Client.Admin.connect_address client ~peer:node_bootstrapped in
+  let bstart = Unix.gettimeofday () in
+  Log.info "Start bootstrapping up to %d." (blocks_to_bake + 1) ;
+  let* _ = Lwt.join events_to_wait in
+  let* _ = Node.wait_for_level node_bootstrapped (blocks_to_bake + 1) in
+  let bend = Unix.gettimeofday () in
+  Log.info "End bootstrapping in %d seconds." (int_of_float (bend -. bstart)) ;
+  unit
+
 let register protocol =
   check_bootstrap_with_history_modes protocol Archive Archive ;
   check_bootstrap_with_history_modes protocol Archive Full ;
@@ -209,6 +295,7 @@ let register protocol =
   check_bootstrap_with_history_modes protocol Full Rolling ;
   check_bootstrap_with_history_modes protocol Rolling Archive ;
   check_bootstrap_with_history_modes protocol Rolling Rolling ;
-  check_bootstrap_with_history_modes protocol Rolling Full
+  check_bootstrap_with_history_modes protocol Rolling Full ;
+  full_bootstrapper_with_events protocol
 
 let register_protocol_independent () = check_rpc_force_bootstrapped ()
