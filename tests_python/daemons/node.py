@@ -74,6 +74,7 @@ class Node:
         peers: List[int] = None,
         log_levels: Dict[str, str] = None,
         singleprocess: bool = False,
+        target: str = None,
         env: Dict[str, str] = None,
     ):
 
@@ -110,13 +111,18 @@ class Node:
         self._params = params
         self._run_called_before = False
         singleprocess_opt = ['--singleprocess'] if singleprocess else []
-        node_run = [
-            node,
-            'run',
-            '--data-dir',
-            node_dir,
-            '--no-bootstrap-peers',
-        ] + singleprocess_opt
+        target_opt = ['--target', target] if target is not None else []
+        node_run = (
+            [
+                node,
+                'run',
+                '--data-dir',
+                node_dir,
+                '--no-bootstrap-peers',
+            ]
+            + singleprocess_opt
+            + target_opt
+        )
         if params:
             node_run.extend(params)
 

@@ -109,6 +109,7 @@ class Sandbox:
         use_tls: Tuple[str, str] = None,
         branch: str = "",
         node_config: dict = None,
+        target: str = None,
     ):
         """Instantiate a Node object and add to sandbox manager
 
@@ -142,6 +143,8 @@ class Sandbox:
             params = params + ['--private-mode']
         peers_rpc = [self.p2p + p for p in peers]
         node_bin = self._wrap_path(NODE, branch)
+        genesis_target = 'BLockGenesisGenesisGenesisGenesisGenesisf79b5d1CoW2,0'
+        target = target if target is not None else genesis_target
         node = Node(
             node_bin,
             config=node_config,
@@ -154,6 +157,7 @@ class Sandbox:
             log_levels=log_levels,
             use_tls=use_tls,
             singleprocess=self.singleprocess,
+            target=target,
         )
 
         self.nodes[node_id] = node
