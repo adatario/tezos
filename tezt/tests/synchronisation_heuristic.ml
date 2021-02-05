@@ -55,10 +55,10 @@ let check_node_synchronization_state protocol =
     ~title:(sf "%s: check synchronization state" (Protocol.name protocol))
     ~tags:[Protocol.tag protocol; "bootstrap"; "node"; "sync"]
   @@ fun () ->
-  let* main_node = Node.init ~name:"main_node" [] in
+  let* main_node = Node.init ~name:"main_node" [Connections n] in
   let* nodes =
     Lwt_list.map_p
-      (fun i -> Node.init ~name:("node" ^ string_of_int i) [])
+      (fun i -> Node.init ~name:("node" ^ string_of_int i) [Connections 1])
       (range 1 n)
   in
   Log.info "%d nodes initialized." (n + 1) ;
@@ -88,7 +88,9 @@ let check_node_synchronization_state protocol =
   in
   Log.info "Restarting the nodes..." ;
   let* _ =
-    Lwt_list.iter_p (fun node -> Node.restart node []) (main_node :: nodes)
+    Lwt_list.iter_p
+      (fun node -> Node.restart node [Connections n])
+      (main_node :: nodes)
   in
   Log.info "Waiting for nodes to be synchronized." ;
   let* () =
@@ -135,7 +137,9 @@ let check_prevalidator_start protocol =
     ~title:"Check prevalidator start"
     ~tags:["bootstrap"; "node"; "prevalidator"]
   @@ fun () ->
-  let init_node threshold = Node.init [Synchronisation_threshold threshold] in
+  let init_node threshold =
+    Node.init [Synchronisation_threshold threshold; Connections 2]
+  in
   let* node1 = init_node 0 in
   let* node2 = init_node 1 in
   let* node3 = init_node 10 in
@@ -150,7 +154,7 @@ let check_prevalidator_start protocol =
   let* () = Client.bake_for ~minimal_timestamp:false client in
   let connect node node' =
     Log.info "%s connects to %s." (Node.name node) (Node.name node') ;
-    Client.Admin.connect_address client ~peer:node'
+    Client.Admin.connect_address ~node client ~peer:node'
   in
   let* () = connect node1 node2 in
   let* () = connect node2 node3 in

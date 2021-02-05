@@ -172,7 +172,7 @@ let double_bake protocol =
   let* _ = Node.wait_for_level node_1 (common_ancestor + 3) in
   (* Step 4 *)
   let* () = Node.terminate node_1 in
-  let* () = Node.run node_2 [Bootstrap_threshold 0] in
+  let* () = Node.run node_2 [Bootstrap_threshold 0; Connections 1] in
   let* () = Node.wait_for_ready node_2 in
   (* Craft a branch of size 2, the first block is baked by bootstrap2 *)
   let* () = Client.bake_for ~key:bootstrap2_key client_2 in
@@ -181,10 +181,14 @@ let double_bake protocol =
   let* () = Client.bake_for ~key:bootstrap1_key client_2 in
   let* _ = Node.wait_for_level node_2 (common_ancestor + 3) in
   (* Step 5 *)
-  let* () = Node.run node_1 [Bootstrap_threshold 0] in
+  let* () =
+    Node.run node_1 [Bootstrap_threshold 0; Private_mode; Connections 1]
+  in
   let* () = Node.wait_for_ready node_1 in
   (* Step 6 *)
-  let* node_3 = Node.init [Bootstrap_threshold 0; Private_mode] in
+  let* node_3 =
+    Node.init [Bootstrap_threshold 0; Private_mode; Connections 2]
+  in
   let* client_3 = Client.init ~node:node_3 () in
   let* accuser_3 = Accuser.init ~protocol node_3 in
   let denunciation = wait_for_denunciation accuser_3 in
@@ -197,7 +201,7 @@ let double_bake protocol =
   and* () = Client.Admin.trust_address client_3 ~peer:node_2 in
   let* () = Client.Admin.connect_address client_1 ~peer:node_3
   and* () = Client.Admin.connect_address client_2 ~peer:node_3 in
-  let* level = Node.wait_for_level node_3 (common_ancestor + 2) in
+  let* level = Node.wait_for_level node_3 (common_ancestor + 3) in
   (* Ensure that the denunciation was emitted by the accuser *)
   Log.info "Level of node3 is %d, waiting for denunciation operation..." level ;
   let* denunciation_oph = denunciation in
@@ -205,8 +209,8 @@ let double_bake protocol =
   let* _ = denunciation_injection in
   (* Step 7 *)
   let* () = Client.bake_for ~key:bootstrap1_key client_3 in
-  let* _ = Node.wait_for_level node_2 (common_ancestor + 4)
-  and* _ = Node.wait_for_level node_3 (common_ancestor + 4) in
+  let* _ = Node.wait_for_level node_2 (common_ancestor + 4) in
+  let* _ = Node.wait_for_level node_3 (common_ancestor + 4) in
   (* Getting the operations of the current head *)
   let* ops = RPC.get_operations client_1 in
   let* () = Accuser.terminate accuser_3 in

@@ -40,22 +40,8 @@ let is_connected ?node client ~peer_id =
        (fun peer -> peer |-> "peer_id" |> as_string = peer_id)
        (connections |> as_list)
 
-let wait_for_unknown_ancestor node =
-  let filter json =
-    match
-      JSON.(json |=> 1 |-> "event" |-> "error" |=> 0 |-> "id" |> as_string_opt)
-    with
-    | None ->
-        (* Not all node_peer_validator.v0 events have an "error" field. *)
-        None
-    | Some id ->
-        if id = "node.peer_validator.unknown_ancestor" then Some () else None
-  in
-  Node.wait_for
-    node
-    "node_peer_validator.v0"
-    ~where:"[1].event.error[0].id is node.peer_validator.unknown_ancestor"
-    filter
+let wait_for_fetching_failed node =
+  Node.wait_for node "bootstrapper_fetching_failed.v0" (fun _ -> Some ())
 
 (* FIXME: this is not robust since we cannot catch the bootstrapped event precisely. *)
 let bootstrapped_event =
@@ -148,8 +134,9 @@ let check_bootstrap_with_history_modes protocol hmode1 hmode2 =
       let* _ = Node.wait_for_level node_2 final_level in
       unit
     else
-      (* In rolling mode, node 2 cannot catch up. We get an unknown ancestor event instead. *)
-      wait_for_unknown_ancestor node_2
+      (* In rolling mode, node 2 cannot catch up. We get a fetching
+         failed event instead. *)
+      wait_for_fetching_failed node_2
   in
   let* () = Client.Admin.connect_address client ~peer:node_2 in
   let* () = node_2_catched_up in
@@ -176,12 +163,8 @@ let check_bootstrap_with_history_modes protocol hmode1 hmode2 =
         return ()
   in
   (* Check whether the nodes are still connected. *)
-  if hmode1 <> Rolling then
-    let* b = is_connected client ~peer_id:node2_identity in
-    if not b then Test.fail "expected the two nodes to be connected" else unit
-  else
-    let* b = is_connected client ~peer_id:node2_identity in
-    if b then Test.fail "expected the two nodes NOT to be connected" else unit
+  let* b = is_connected client ~peer_id:node2_identity in
+  if not b then Test.fail "expected the two nodes to be connected" else unit
 
 let check_rpc_force_bootstrapped () =
   Test.register

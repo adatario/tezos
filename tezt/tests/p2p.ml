@@ -48,7 +48,7 @@ let check_peer_option protocol =
     ~title:"check peer option"
     ~tags:["p2p"; "cli"; "peer"]
   @@ fun () ->
-  let* node_1 = Node.init [Synchronisation_threshold 0] in
+  let* node_1 = Node.init [Synchronisation_threshold 0; Connections 1] in
   let* client = Client.init ~node:node_1 () in
   let* () = Client.activate_protocol ~protocol client in
   let node_2 = Node.create [] in
@@ -56,7 +56,7 @@ let check_peer_option protocol =
   let* () = Node.identity_generate node_2 in
   let* () = Node.config_init node_2 [] in
   let* () = Node.add_peer_with_id node_2 node_1 in
-  let* () = Node.run node_2 [] in
+  let* () = Node.run node_2 [Connections 1] in
   let* () = wait in
   let* _ = Node.wait_for_level node_1 1
   and* _ = Node.wait_for_level node_2 1 in
