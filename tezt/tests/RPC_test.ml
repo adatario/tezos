@@ -57,7 +57,10 @@ let check_rpc ~group_name ~protocol
       @@ fun () ->
       (* Initialize a node with alpha protocol and data to be used for RPC calls.
          The log of the node is not captured in the regression output. *)
-      let* node = Node.init [Synchronisation_threshold 0; Connections 0] in
+      let* node =
+        Node.init
+          [Synchronisation_threshold 0; No_bootstrap_peers; Private_mode]
+      in
       let* client = Client.init ~node () in
       let* parameter_file =
         match parameter_overrides with
