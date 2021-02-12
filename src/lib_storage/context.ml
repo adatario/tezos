@@ -56,6 +56,11 @@ let () =
     Logs.set_level (Some Logs.Debug) ;
     Logs.set_reporter (reporter ())
   in
+  let verbose_info () =
+    Logs.set_level (Some Logs.Info) ;
+    Logs.set_reporter (reporter ())
+  in
+  verbose_info ();
   let index_log_size n = index_log_size := Some (int_of_string n) in
   match Unix.getenv "TEZOS_STORAGE" with
   | exception Not_found ->
@@ -339,6 +344,7 @@ let add_predecessor_ops_metadata_hash v hash =
 (*-- Initialisation ----------------------------------------------------------*)
 
 let init ?patch_context ?mapsize:_ ?(readonly = false) root =
+  if not readonly then (Memtrace.trace_if_requested ());
   Store.Repo.v
     (Irmin_pack.config ~readonly ?index_log_size:!index_log_size root)
   >|= fun repo -> {path = root; repo; patch_context; readonly}
