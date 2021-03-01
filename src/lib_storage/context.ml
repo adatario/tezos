@@ -507,20 +507,20 @@ let fold ctxt key ~init ~f =
       let s = String.concat "," (data_key key) in
       let op = Json.pp_op (Json.Todo ("fold over "^s)) in
       l "[context] %s" op) ;
-  Store.Tree.list ctxt.tree (data_key key)
-  >>= fun keys ->
-  List.fold_left_s
-    (fun acc (name, t) ->
-      let key =
-        match Store.Tree.destruct t with
-        | `Contents _ ->
-            `Key (key @ [name])
-        | `Node _ ->
-            `Dir (key @ [name])
-      in
-      f key acc)
-    init
-    keys
+  Store.Tree.find_tree ctxt.tree (data_key key)
+  >>= function
+  | None ->
+      Lwt.return init
+  | Some tree ->
+      Store.Tree.fold
+        ~depth:(`Eq 1)
+        ~contents:(fun k _ acc ->
+          if k = [] then Lwt.return acc else f (`Key (key @ k)) acc)
+        ~node:(fun k _ acc ->
+          assert (k <> []) ;
+          f (`Dir (key @ k)) acc)
+        tree
+        init
 
 (*-- Predefined Fields -------------------------------------------------------*)
 
