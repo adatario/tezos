@@ -232,7 +232,7 @@ module type S = sig
 
   module type S = sig
     (** @inline *)
-    include Tezos_context_sigs.Context.MEM
+    include MEM
   end
 
   include S
