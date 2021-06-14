@@ -26,7 +26,7 @@
 
 (** Implementation of Tezos context fully in memory. *)
 
-include Tezos_context_sigs.Context.S
+include Tezos_context_sigs.Context.MEM
 
 val empty : t
 

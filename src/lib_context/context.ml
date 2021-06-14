@@ -191,7 +191,7 @@ let make_context ?parent ?(tree = Store.Tree.empty) index =
 
 type t = context
 
-module type S = Tezos_context_sigs.Context.S
+module type S = Tezos_context_sigs.Context.MEM
 
 (*-- Version Access and Update -----------------------------------------------*)
 
