@@ -169,7 +169,7 @@ and context = {index : index; parents : Store.Commit.t list; tree : Store.tree}
 
 type t = context
 
-module type S = Tezos_context_sigs.Context.S
+module type S = Tezos_context_sigs.Context.MEM
 
 (*-- Version Access and Update -----------------------------------------------*)
 
