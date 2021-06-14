@@ -180,7 +180,7 @@ let added_trees_to_flush = 10_000
 
 type t = context
 
-module type S = Tezos_context_sigs.Context.S
+module type S = Tezos_context_sigs.Context.MEM
 
 (*-- Version Access and Update -----------------------------------------------*)
 

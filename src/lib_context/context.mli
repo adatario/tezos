@@ -38,7 +38,7 @@ type error +=
 
 module type S = sig
   (** @inline *)
-  include Tezos_context_sigs.Context.S
+  include Tezos_context_sigs.Context.MEM
 end
 
 include S

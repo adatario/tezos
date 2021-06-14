@@ -176,7 +176,7 @@ module type HASH_VERSION = sig
   val set_hash_version : t -> Context_hash.Version.t -> t Lwt.t
 end
 
-module type S = sig
+module type MEM = sig
   include VIEW with type key = string list and type value = bytes
 
   module Tree : sig
