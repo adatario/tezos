@@ -5,6 +5,7 @@
 (* Copyright (c) 2018-2021 Nomadic Labs <contact@nomadic-labs.com>           *)
 (* Copyright (c) 2018-2020 Tarides <contact@tarides.com>                     *)
 (* Copyright (c) 2020 Metastate AG <hello@metastate.dev>                     *)
+(* Copyright (c) 2021 DaiLambda, Inc. <contact@dailambda.com>                *)
 (*                                                                           *)
 (* Permission is hereby granted, free of charge, to any person obtaining a   *)
 (* copy of this software and associated documentation files (the "Software"),*)
@@ -165,7 +166,17 @@ type index = {
   readonly : bool;
 }
 
-and context = {index : index; parents : Store.Commit.t list; tree : Store.tree}
+and context = {
+  index : index;
+  parents : Store.Commit.t list;
+  tree : Store.tree;
+  (* number of [add_tree] calls, not yet flushed *)
+  added_trees : int;
+  (* intermediate trees ever flushed or not *)
+  flushed : string list option;
+}
+
+let added_trees_to_flush = 10_000
 
 type t = context
 
@@ -200,28 +211,12 @@ let checkout index key =
   Store.Commit.of_hash index.repo (Hash.of_context_hash key)
   >|= Option.map (fun commit ->
           let tree = Store.Commit.tree commit in
-          {index; tree; parents = [commit]})
+          {index; tree; parents = [commit]; added_trees = 0; flushed = None})
 
 let checkout_exn index key =
   checkout index key >>= function
   | None -> Lwt.fail Not_found
   | Some p -> Lwt.return p
-
-(* unshallow possible 1-st level objects from previous partial
-   checkouts ; might be better to pass directly the list of shallow
-   objects. *)
-let unshallow context =
-  Store.Tree.list context.tree [] >>= fun children ->
-  P.Repo.batch context.index.repo (fun x y _ ->
-      List.iter_s
-        (fun (s, k) ->
-          match Store.Tree.destruct k with
-          | `Contents _ -> Lwt.return ()
-          | `Node _ ->
-              Store.Tree.get_tree context.tree [s] >>= fun tree ->
-              Store.save_tree ~clear:true context.index.repo x y tree
-              >|= fun _ -> ())
-        children)
 
 let get_hash_version _c = Context_hash.Version.of_int 0
 
@@ -234,10 +229,15 @@ let raw_commit ~time ?(message = "") context =
     Info.v ~author:"Tezos" ~date:(Time.Protocol.to_seconds time) message
   in
   let parents = List.map Store.Commit.hash context.parents in
-  unshallow context >>= fun () ->
-  Store.Commit.v context.index.repo ~info ~parents context.tree >|= fun c ->
+  Store.Commit.v context.index.repo ~info ~parents context.tree >|= fun h ->
   Store.Tree.clear context.tree ;
-  c
+  (* Once committed, the context itself may be no longer interested.
+     If the context has been a lot, it leaves a huge garbage in memory.
+     Therefore it may be a good timing to perform [Gc.compact].
+  *)
+  if context.flushed <> None || context.added_trees >= added_trees_to_flush then
+    Gc.full_major () ;
+  h
 
 let hash ~time ?(message = "") context =
   let info =
@@ -287,8 +287,24 @@ let remove ctxt key = raw_remove ctxt (data_key key)
 
 let find_tree ctxt key = Tree.find_tree ctxt.tree (data_key key)
 
+let flush context =
+  P.Repo.batch context.index.repo (fun x y _ ->
+      Store.save_tree ~clear:true context.index.repo x y context.tree)
+  >|= fun _ -> {context with added_trees = 0}
+
+let may_flush key context =
+  let dir = match key with dir :: _ -> [dir] | _ -> key in
+  if
+    (not context.index.readonly)
+    && context.added_trees >= added_trees_to_flush
+    && context.flushed <> Some dir
+  then flush context >|= fun context -> {context with flushed = Some dir}
+  else Lwt.return context
+
 let add_tree ctxt key tree =
-  Tree.add_tree ctxt.tree (data_key key) tree >|= fun tree -> {ctxt with tree}
+  may_flush key ctxt >>= fun ctxt ->
+  Tree.add_tree ctxt.tree (data_key key) tree >|= fun tree ->
+  {ctxt with tree; added_trees = ctxt.added_trees + 1}
 
 let fold ?depth ctxt key ~init ~f =
   Tree.fold ?depth ctxt.tree (data_key key) ~init ~f
@@ -475,7 +491,7 @@ let get_branch chain_id = Format.asprintf "%a" Chain_id.pp chain_id
 
 let commit_genesis index ~chain_id ~time ~protocol =
   let tree = Store.Tree.empty in
-  let ctxt = {index; tree; parents = []} in
+  let ctxt = {index; tree; parents = []; added_trees = 0; flushed = None} in
   (match index.patch_context with
   | None -> return ctxt
   | Some patch_context -> patch_context ctxt)
@@ -685,7 +701,14 @@ module Dumpable_context = struct
     in
     aux tree Fun.id >>= fun () -> Lwt.return !total_visited
 
-  let make_context index = {index; tree = Store.Tree.empty; parents = []}
+  let make_context index =
+    {
+      index;
+      tree = Store.Tree.empty;
+      parents = [];
+      added_trees = 0;
+      flushed = None;
+    }
 
   let update_context context tree = {context with tree}
 
@@ -1038,7 +1061,14 @@ module Dumpable_context_legacy = struct
     in
     aux tree Fun.id
 
-  let make_context index = {index; tree = Store.Tree.empty; parents = []}
+  let make_context index =
+    {
+      index;
+      tree = Store.Tree.empty;
+      parents = [];
+      added_trees = 0;
+      flushed = None;
+    }
 
   let update_context context tree = {context with tree}
 
@@ -1156,7 +1186,13 @@ let check_protocol_commit_consistency index ~expected_context_hash
   if Context_hash.equal expected_context_hash computed_context_hash then
     let ctxt =
       let parent = Store.of_private_commit index.repo commit in
-      {index; tree = Store.Tree.empty; parents = [parent]}
+      {
+        index;
+        tree = Store.Tree.empty;
+        parents = [parent];
+        added_trees = 0;
+        flushed = None;
+      }
     in
     add_test_chain ctxt test_chain_status >>= fun ctxt ->
     add_protocol ctxt given_protocol_hash >>= fun ctxt ->
@@ -1363,7 +1399,13 @@ let validate_context_hash_consistency_and_commit ~data_hash
   if Context_hash.equal expected_context_hash computed_context_hash then
     let ctxt =
       let parent = Store.of_private_commit index.repo commit in
-      {index; tree = Store.Tree.empty; parents = [parent]}
+      {
+        index;
+        tree = Store.Tree.empty;
+        parents = [parent];
+        added_trees = 0;
+        flushed = None;
+      }
     in
     add_test_chain ctxt test_chain >>= fun ctxt ->
     add_protocol ctxt protocol_hash >>= fun ctxt ->
