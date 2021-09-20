@@ -222,17 +222,11 @@ end
 module type S = sig
   (** Tezos - Versioned, block indexed (key x value) store *)
 
-  type error +=
-    | Cannot_create_file of string
-    | Cannot_open_file of string
-    | Cannot_find_protocol
-    | Suspicious_file of int
-
   (** {2 Generic interface} *)
 
   module type S = sig
     (** @inline *)
-    include Tezos_context_sigs.Context.MEM
+    include MEM
   end
 
   include S
@@ -518,9 +512,9 @@ module type S = sig
     bool Lwt.t
 
   (** Offline integrity checking and statistics for contexts. *)
-  module Checks : sig
-    module Pack : Irmin_pack.Checks.S
-
-    module Index : Index.Checks.S
-  end
+  (* module Checks : sig
+   *   module Pack : Irmin_pack.Checks.S
+   *
+   *   module Index : Index.Checks.S
+   * end *)
 end

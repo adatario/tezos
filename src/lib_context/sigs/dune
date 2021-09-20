@@ -2,6 +2,9 @@
  (name tezos_context_sigs)
  (instrumentation (backend bisect_ppx))
  (public_name tezos-context.sigs)
- (libraries tezos-base)
- (flags (:standard -open Tezos_base__TzPervasives
-                   -open Tezos_stdlib)))
+ (libraries tezos-base
+            tezos-shell-services
+            irmin
+            irmin-pack)
+ (flags (:standard -open Tezos_shell_services
+                   -open Tezos_base__TzPervasives)))
