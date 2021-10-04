@@ -1,0 +1,16 @@
+(library
+ (name tezos_context_recording)
+ (public_name tezos-context.recording)
+ (libraries tezos-base
+            tezos-shell-services
+            tezos-stdlib-unix
+            tezos-context.encoding
+            tezos-context.sigs
+	    repr
+            irmin)
+ (preprocess
+  (pps ppx_repr))
+ (flags (:standard -open Tezos_shell_services
+                   -open Tezos_base__TzPervasives
+                   -open Tezos_stdlib_unix
+                   -open Tezos_stdlib)))
