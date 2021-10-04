@@ -3,7 +3,7 @@
 (* Open Source License                                                       *)
 (* Copyright (c) 2018 Dynamic Ledger Solutions, Inc. <contact@tezos.com>     *)
 (* Copyright (c) 2018-2021 Nomadic Labs <contact@nomadic-labs.com>           *)
-(* Copyright (c) 2018-2021 Tarides <contact@tarides.com>                     *)
+(* Copyright (c) 2018-2022 Tarides <contact@tarides.com>                     *)
 (* Copyright (c) 2020 Metastate AG <hello@metastate.dev>                     *)
 (*                                                                           *)
 (* Permission is hereby granted, free of charge, to any person obtaining a   *)
@@ -43,6 +43,15 @@ module type VIEW = sig
   (** The type for context trees. *)
   type tree
 
+  (** The type for tree stats. *)
+  type tree_stats = {
+    nodes : int;
+    leafs : int;
+    skips : int;
+    depth : int;
+    width : int;
+  }
+
   (** {2 Getters} *)
 
   (** [mem t k] is an Lwt promise that resolves to [true] iff [k] is bound
@@ -65,6 +74,12 @@ module type VIEW = sig
       [offset] and [length] are used for pagination. *)
   val list :
     t -> ?offset:int -> ?length:int -> key -> (string * tree) list Lwt.t
+
+  (** [length t k] is [Some len] if [k] is bound to a node in [t], otherwise it
+      is [None]. [len] is the number of entry in the node. *)
+  val length : t -> key -> int option Lwt.t
+
+  val stats : t -> tree_stats Lwt.t
 
   (** {2 Setters} *)
 
@@ -192,6 +207,7 @@ module type MEM = sig
          and type key := key
          and type value := value
          and type tree := tree
+         and type tree_stats := tree_stats
 
     (** [pp] is the pretty-printer for trees. *)
     val pp : Format.formatter -> tree -> unit
@@ -249,7 +265,7 @@ module type S = sig
   val init :
     ?patch_context:(context -> context tzresult Lwt.t) ->
     ?readonly:bool ->
-    ?indexing_strategy:[`Always | `Minimal] ->
+    ?indexing_strategy:[`Always | `Minimal | `Contents] ->
     string ->
     index Lwt.t
 
@@ -374,7 +390,6 @@ module type S = sig
     Lwt.t
 
   val check_protocol_commit_consistency :
-    index ->
     expected_context_hash:Context_hash.t ->
     given_protocol_hash:Protocol_hash.t ->
     author:string ->
@@ -393,4 +408,22 @@ module type S = sig
 
     module Index : Index.Checks.S
   end
+
+  (** Module-wise stats for all tree operations *)
+  type module_tree_stats = {
+    mutable contents_hash : int;
+    mutable contents_find : int;
+    mutable contents_add : int;
+    mutable contents_mem : int;
+    mutable node_hash : int;
+    mutable node_mem : int;
+    mutable node_index : int;
+    mutable node_add : int;
+    mutable node_find : int;
+    mutable node_val_v : int;
+    mutable node_val_find : int;
+    mutable node_val_list : int;
+  }
+
+  val module_tree_stats : unit -> module_tree_stats
 end

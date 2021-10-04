@@ -3,7 +3,7 @@
 (* Open Source License                                                       *)
 (* Copyright (c) 2018 Dynamic Ledger Solutions, Inc. <contact@tezos.com>     *)
 (* Copyright (c) 2018-2021 Nomadic Labs <contact@nomadic-labs.com>           *)
-(* Copyright (c) 2018-2020 Tarides <contact@tarides.com>                     *)
+(* Copyright (c) 2018-2022 Tarides <contact@tarides.com>                     *)
 (* Copyright (c) 2020 Metastate AG <hello@metastate.dev>                     *)
 (* Copyright (c) 2021 DaiLambda, Inc. <contact@dailambda.com>                *)
 (*                                                                           *)
@@ -254,6 +254,29 @@ type tree = Store.tree
 
 module Tree = Tezos_context_helpers.Context.Make_tree (Store)
 
+type tree_stats = Tree.tree_stats = {
+  nodes : int;
+  leafs : int;
+  skips : int;
+  depth : int;
+  width : int;
+}
+
+type module_tree_stats = Store.Tree.counters = {
+  mutable contents_hash : int;
+  mutable contents_find : int;
+  mutable contents_add : int;
+  mutable contents_mem : int;
+  mutable node_hash : int;
+  mutable node_mem : int;
+  mutable node_index : int;
+  mutable node_add : int;
+  mutable node_find : int;
+  mutable node_val_v : int;
+  mutable node_val_find : int;
+  mutable node_val_list : int;
+}
+
 let mem ctxt key = Tree.mem ctxt.tree (data_key key)
 
 let mem_tree ctxt key = Tree.mem_tree ctxt.tree (data_key key)
@@ -266,6 +289,10 @@ let list ctxt ?offset ?length key =
 let find ctxt key = raw_find ctxt (data_key key)
 
 let incr_ops ctxt = {ctxt with ops = ctxt.ops + 1}
+
+let length ctxt key = Tree.length ctxt.tree key
+
+let stats ctxt = Tree.stats ctxt.tree
 
 let raw_add ctxt key data =
   Tree.add ctxt.tree key data >|= fun tree -> incr_ops {ctxt with tree}
@@ -303,6 +330,8 @@ let add_tree ctxt key tree =
 
 let fold ?depth ctxt key ~order ~init ~f =
   Tree.fold ?depth ctxt.tree (data_key key) ~order ~init ~f
+
+let module_tree_stats = Store.Tree.counters
 
 (** The light mode relies on the implementation of this
     function, because it uses Irmin.Type.of_string to rebuild values
@@ -506,7 +535,10 @@ let init ?patch_context ?(readonly = false) ?(indexing_strategy = `Minimal) root
   let index_log_size = Option.value ~default:2_500_000 Env.(v.index_log_size) in
   let indexing_strategy =
     let module I = Irmin_pack.Pack_store.Indexing_strategy in
-    match indexing_strategy with `Minimal -> I.minimal | `Always -> I.always
+    match indexing_strategy with
+    | `Minimal -> I.minimal
+    | `Always -> I.always
+    | `Contents -> I.minimal_with_contents
   in
   Store.Repo.v
     (Irmin_pack.config ~readonly ~index_log_size ~indexing_strategy root)

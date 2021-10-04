@@ -1,7 +1,7 @@
 (*****************************************************************************)
 (*                                                                           *)
 (* Open Source License                                                       *)
-(* Copyright (c) 2018-2021 Tarides <contact@tarides.com>                     *)
+(* Copyright (c) 2018-2022 Tarides <contact@tarides.com>                     *)
 (* Copyright (c) 2021 Nomadic Labs, <contact@nomadic-labs.com>               *)
 (*                                                                           *)
 (* Permission is hereby granted, free of charge, to any person obtaining a   *)
@@ -76,6 +76,14 @@ module Make_tree (Store : DB) = struct
   type raw = [`Value of bytes | `Tree of raw TzString.Map.t]
 
   type concrete = Store.Tree.concrete
+
+  type tree_stats = Store.Tree.stats = {
+    nodes : int;
+    leafs : int;
+    skips : int;
+    depth : int;
+    width : int;
+  }
 
   let rec raw_of_concrete : type a. (raw -> a) -> concrete -> a =
    fun k -> function
@@ -192,6 +200,10 @@ module Make_tree (Store : DB) = struct
             in
             raise (Context_dangling_hash str)
         | exn -> raise exn)
+
+  let length t k = length t k >|= fun i -> Some i
+
+  let stats = stats ~force:false
 end
 
 type error += Unsupported_context_hash_version of Context_hash.Version.t
