@@ -26,10 +26,19 @@
 type t = {
   verbosity : [`Default | `Info | `Debug];
   index_log_size : int option;
+  record_raw_actions_trace : [`No | `Yes of string];
+  record_stats_trace : [`No | `Yes of string];
+  stats_trace_message : string option;
 }
 
 let default =
-  {verbosity = `Default; index_log_size = None}
+  {
+    verbosity = `Default;
+    index_log_size = None;
+    record_raw_actions_trace = `No;
+    record_stats_trace = `No;
+    stats_trace_message = None;
+  }
 
 let max_verbosity a b =
   match (a, b) with
@@ -51,6 +60,15 @@ let v =
               match String.split '=' v |> List.map String.trim with
               | ["index-log-size"; n] ->
                   {acc with index_log_size = int_of_string_opt n}
+              | ["actions-trace-record-directory"; path] ->
+                  {acc with record_raw_actions_trace = `Yes path}
+              | ["stats-trace-record-directory"; path] ->
+                  {acc with record_stats_trace = `Yes path}
               | _ -> acc))
         default
         (String.split ',' v)
+
+let v =
+  match Unix.getenv "STATS_TRACE_MESSAGE" with
+  | exception Not_found -> v
+  | msg -> {v with stats_trace_message = Some msg}
