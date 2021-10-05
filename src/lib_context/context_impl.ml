@@ -111,40 +111,15 @@ let reporter () =
   in
   {Logs.report}
 
-let index_log_size = ref None
-
-let auto_flush = ref 10_000
-(* This limit ensures that no trees with more than [auto_flush]
-   mutations can exist in memory, bounding the memory usage of a
-   single commit performed by a read-write process. As a trade-off,
-   the intermediate flushed trees to the store might be unused and
-   will have to be garbage collected later on to save space. *)
-
 let () =
-  let verbose_info () =
-    Logs.set_level (Some Logs.Info) ;
-    Logs.set_reporter (reporter ())
-  in
-  let verbose_debug () =
-    Logs.set_level (Some Logs.Debug) ;
-    Logs.set_reporter (reporter ())
-  in
-  let index_log_size n = index_log_size := Some (int_of_string n) in
-  let auto_flush n = auto_flush := int_of_string n in
-  match Unix.getenv "TEZOS_CONTEXT" with
-  | exception Not_found -> ()
-  | v ->
-      let args = String.split ',' v in
-      List.iter
-        (function
-          | "v" | "verbose" -> verbose_info ()
-          | "vv" -> verbose_debug ()
-          | v -> (
-              match String.split '=' v with
-              | ["index-log-size"; n] -> index_log_size n
-              | ["auto-flush"; n] -> auto_flush n
-              | _ -> ()))
-        args
+  match Env.(v.verbosity) with
+  | `Info ->
+      Logs.set_level (Some Logs.Info) ;
+      Logs.set_reporter (reporter ())
+  | `Debug ->
+      Logs.set_level (Some Logs.Debug) ;
+      Logs.set_reporter (reporter ())
+  | `Default -> ()
 
 module Store = struct
   module Maker = Irmin_pack.Maker (Conf)
@@ -309,8 +284,15 @@ let flush context =
       Store.save_tree ~clear:true context.index.repo x y context.tree)
   >|= fun _ -> {context with ops = 0}
 
+(* This limit ensures that no trees with more than [auto_flush]
+   mutations can exist in memory, bounding the memory usage of a
+   single commit performed by a read-write process. As a trade-off,
+   the intermediate flushed trees to the store might be unused and
+   will have to be garbage collected later on to save space. *)
+let auto_flush = Option.value ~default:10_000 Env.(v.auto_flush)
+
 let may_flush context =
-  if (not context.index.readonly) && context.ops >= !auto_flush then
+  if (not context.index.readonly) && context.ops >= auto_flush then
     flush context
   else Lwt.return context
 
@@ -521,7 +503,7 @@ let fork_test_chain v ~protocol ~expiration =
 
 let init ?patch_context ?(readonly = false) ?(indexing_strategy = `Minimal) root
     =
-  let index_log_size = Option.value ~default:2_500_000 !index_log_size in
+  let index_log_size = Option.value ~default:2_500_000 Env.(v.index_log_size) in
   let indexing_strategy =
     let module I = Irmin_pack.Pack_store.Indexing_strategy in
     match indexing_strategy with `Minimal -> I.minimal | `Always -> I.always
