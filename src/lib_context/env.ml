@@ -27,6 +27,9 @@ type t = {
   verbosity : [`Default | `Info | `Debug];
   index_log_size : int option;
   auto_flush : int;
+  record_raw_actions_trace : [`No | `Yes of string];
+  record_stats_trace : [`No | `Yes of string];
+  stats_trace_message : string option;
 }
 (* This limit ensures that no trees with more than [auto_flush]
    mutations can exist in memory, bounding the memory usage of a
@@ -35,7 +38,14 @@ type t = {
    will have to be garbage collected later on to save space. *)
 
 let default =
-  {verbosity = `Default; index_log_size = None; auto_flush = 10000}
+  {
+    verbosity = `Default;
+    index_log_size = None;
+    record_raw_actions_trace = `No;
+    record_stats_trace = `No;
+    stats_trace_message = None;
+    auto_flush = 10000;
+  }
 
 let max_verbosity a b =
   match (a, b) with
@@ -59,6 +69,15 @@ let v =
                   {acc with index_log_size = int_of_string_opt n}
               | ["auto-flush"; n] ->
                   {acc with index_log_size = int_of_string_opt n}
+              | ["actions-trace-record-directory"; path] ->
+                  {acc with record_raw_actions_trace = `Yes path}
+              | ["stats-trace-record-directory"; path] ->
+                  {acc with record_stats_trace = `Yes path}
               | _ -> acc))
         default
         (String.split ',' v)
+
+let v =
+  match Unix.getenv "STATS_TRACE_MESSAGE" with
+  | exception Not_found -> v
+  | msg -> {v with stats_trace_message = Some msg}
