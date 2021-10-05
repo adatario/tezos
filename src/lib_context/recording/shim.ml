@@ -689,10 +689,6 @@ module Make
          ~nb_context_elements
          ~fd
 
-  let restore_integrity ?ppf x =
-    record_unhandled_direct "restore_integrity" @@ fun () ->
-    Impl.restore_integrity ?ppf (Index_abstract.unwrap x)
-
   let dump_context x y ~fd =
     record_unhandled "dump_context"
     @@ Impl.dump_context (Index_abstract.unwrap x) y ~fd

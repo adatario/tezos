@@ -249,6 +249,27 @@ type tree = Store.tree
 
 module Tree = Tezos_context_helpers.Context.Make_tree (Store)
 
+type tree_stats = Tree.tree_stats = {
+  nodes : int;
+  leafs : int;
+  skips : int;
+  depth : int;
+  width : int;
+}
+
+type module_tree_stats = Store.Tree.counters = {
+  mutable contents_hash : int;
+  mutable contents_find : int;
+  mutable contents_add : int;
+  mutable node_hash : int;
+  mutable node_mem : int;
+  mutable node_add : int;
+  mutable node_find : int;
+  mutable node_val_v : int;
+  mutable node_val_find : int;
+  mutable node_val_list : int;
+}
+
 let mem ctxt key = Tree.mem ctxt.tree (data_key key)
 
 let mem_tree ctxt key = Tree.mem_tree ctxt.tree (data_key key)
@@ -259,6 +280,10 @@ let list ctxt ?offset ?length key =
   Tree.list ctxt.tree ?offset ?length (data_key key)
 
 let find ctxt key = raw_find ctxt (data_key key)
+
+let length ctxt key = Tree.length ctxt.tree key
+
+let stats ctxt = Tree.stats ctxt.tree
 
 let raw_add ctxt key data =
   Tree.add ctxt.tree key data >|= fun tree -> {ctxt with tree}
@@ -276,6 +301,8 @@ let add_tree ctxt key tree =
 
 let fold ?depth ctxt key ~init ~f =
   Tree.fold ?depth ctxt.tree (data_key key) ~init ~f
+
+let module_tree_stats = Store.Tree.counters
 
 (** The light mode relies on the implementation of this
     function, because it uses Irmin.Type.of_string to rebuild values
