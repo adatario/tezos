@@ -111,31 +111,15 @@ let reporter () =
   in
   {Logs.report}
 
-let index_log_size = ref None
-
 let () =
-  let verbose_info () =
-    Logs.set_level (Some Logs.Info) ;
-    Logs.set_reporter (reporter ())
-  in
-  let verbose_debug () =
-    Logs.set_level (Some Logs.Debug) ;
-    Logs.set_reporter (reporter ())
-  in
-  let index_log_size n = index_log_size := Some (int_of_string n) in
-  match Unix.getenv "TEZOS_CONTEXT" with
-  | exception Not_found -> ()
-  | v ->
-      let args = String.split ',' v in
-      List.iter
-        (function
-          | "v" | "verbose" -> verbose_info ()
-          | "vv" -> verbose_debug ()
-          | v -> (
-              match String.split '=' v with
-              | ["index-log-size"; n] -> index_log_size n
-              | _ -> ()))
-        args
+  match Env.(v.verbosity) with
+  | `Info ->
+      Logs.set_level (Some Logs.Info) ;
+      Logs.set_reporter (reporter ())
+  | `Debug ->
+      Logs.set_level (Some Logs.Debug) ;
+      Logs.set_reporter (reporter ())
+  | `Default -> ()
 
 module Store =
   Irmin_pack.Make_ext (Irmin_pack.Version.V1) (Conf) (Node) (Commit) (Metadata)
@@ -532,7 +516,7 @@ let add_predecessor_ops_metadata_hash v hash =
 (*-- Initialisation ----------------------------------------------------------*)
 
 let init ?patch_context ?(readonly = false) root =
-  let index_log_size = Option.value ~default:2_500_000 !index_log_size in
+  let index_log_size = Option.value ~default:2_500_000 Env.(v.index_log_size) in
   Store.Repo.v (Irmin_pack.config ~readonly ~index_log_size root)
   >|= fun repo -> {path = root; repo; patch_context; readonly}
 
