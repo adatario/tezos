@@ -97,6 +97,16 @@ val validate :
   Operation.t list list ->
   unit tzresult Lwt.t
 
+val preapply :
+  t ->
+  ?canceler:Lwt_canceler.t ->
+  Store.chain_store ->
+  predecessor:Store.Block.t ->
+  timestamp:Time.Protocol.t ->
+  protocol_data:bytes ->
+  Operation.t list list ->
+  (Block_header.shell_header * error Preapply_result.t trace) tzresult Lwt.t
+
 val fetch_and_compile_protocol :
   t ->
   ?peer:P2p_peer.Id.t ->

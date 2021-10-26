@@ -214,9 +214,12 @@ let apply_context context_index chain_id ~user_activated_upgrades
      block to the next one.
   *)
   >>=?
-  fun ( ({validation_store; block_metadata; ops_metadata; _} :
-          Block_validation.result),
-        _ ) ->
+  fun {
+        result =
+          ({validation_store; block_metadata; ops_metadata; _} : Block_validation
+                                                                 .result);
+        _;
+      } ->
   check_context_hash_consistency validation_store block_header >>=? fun () ->
   return
     {
