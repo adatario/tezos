@@ -451,6 +451,13 @@ module Make
     Impl.hash ~time ?message (Context_traced.unwrap x)
     |> record_and_return_output
 
+  let hash_then_gc ~time ?message x =
+    let record_and_return_output =
+      iter_recorders (fun (module R) -> R.hash ~time ~message ~~x) Fun.id
+    in
+    Impl.hash_then_gc ~time ?message (Context_traced.unwrap x)
+    >|= record_and_return_output
+
   let merkle_tree x y z =
     let record_and_return_output =
       iter_recorders (fun (module R) -> R.merkle_tree ~~x y z) Fun.id
