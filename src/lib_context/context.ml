@@ -224,7 +224,41 @@ let set_hash_version c v =
   if Context_hash.Version.(of_int 0 = v) then return c
   else fail (Tezos_context_helpers.Context.Unsupported_context_hash_version v)
 
+let stats () =
+  let ins = Index.Stats.get () in
+  let ips = Irmin_pack.Stats.get () in
+  Fmt.epr
+    "index stats \n\
+     bytes read = %d nb_reads = %d bytes_written = %d nb_writes = %d \
+     nb_replace = %d nb_sync = %d \n\
+     replace_durations = %a\n"
+    ins.bytes_read
+    ins.nb_reads
+    ins.bytes_written
+    ins.nb_writes
+    ins.nb_replace
+    ins.nb_sync
+    Fmt.(list ~sep:comma float)
+    ins.replace_durations ;
+  Fmt.epr
+    "irmin-pack stats finds= %d cache_misses= %d appended_hashes= %d \
+     appended_offsets= %d\n"
+    ips.finds
+    ips.cache_misses
+    ips.appended_hashes
+    ips.appended_offsets ;
+  Fmt.epr "tree counters = %a\n%!" Store.Tree.dump_counters () ;
+  Index.Stats.reset_stats () ;
+  Irmin_pack.Stats.reset_stats () ;
+  Store.Tree.reset_counters ()
+
+let timer () =
+  Fmt.epr "%+04.0fmin\n%!" (Mtime.Span.to_min (Mtime_clock.elapsed ()))
+
 let raw_commit ~time ?(message = "") context =
+  Fmt.epr "start raw_commit\n%!" ;
+  stats () ;
+  timer () ;
   let info =
     Info.v ~author:"Tezos" ~date:(Time.Protocol.to_seconds time) message
   in
@@ -237,9 +271,15 @@ let raw_commit ~time ?(message = "") context =
   *)
   if context.flushed <> None || context.added_trees >= added_trees_to_flush then
     Gc.full_major () ;
+  Fmt.epr "end raw_commit\n%!" ;
+  timer () ;
+  stats () ;
   h
 
 let hash ~time ?(message = "") context =
+  Fmt.epr "start hash ro = %b\n%!" context.index.readonly ;
+  stats () ;
+  timer () ;
   let info =
     Info.v ~author:"Tezos" ~date:(Time.Protocol.to_seconds time) message
   in
@@ -247,7 +287,11 @@ let hash ~time ?(message = "") context =
   let node = Store.Tree.hash context.tree in
   let commit = P.Commit.Val.v ~parents ~node ~info in
   let x = P.Commit.Key.hash commit in
-  Hash.to_context_hash x
+  let x = Hash.to_context_hash x in
+  Fmt.epr "end hash ro = %b\n%!" context.index.readonly ;
+  timer () ;
+  stats () ;
+  x
 
 let commit ~time ?message context =
   raw_commit ~time ?message context >|= fun commit ->
@@ -288,9 +332,16 @@ let remove ctxt key = raw_remove ctxt (data_key key)
 let find_tree ctxt key = Tree.find_tree ctxt.tree (data_key key)
 
 let flush context =
+  Fmt.epr "start flush \n%!" ;
+  stats () ;
+  timer () ;
   P.Repo.batch context.index.repo (fun x y _ ->
       Store.save_tree ~clear:true context.index.repo x y context.tree)
-  >|= fun _ -> {context with added_trees = 0}
+  >|= fun _ ->
+  Fmt.epr "end flush\n%!" ;
+  timer () ;
+  stats () ;
+  {context with added_trees = 0}
 
 let may_flush key context =
   let dir = match key with dir :: _ -> [dir] | _ -> key in
