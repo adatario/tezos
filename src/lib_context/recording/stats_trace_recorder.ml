@@ -649,16 +649,16 @@ module Make
     Lwt.return_unit
 
   let () =
-    Lwt_main.run
-      (
-        let* f = commit
-         ~time:(Obj.magic ())
-         ~message:(Obj.magic ())
-         (Stdlib.Option.get !last_ctx, 42L)
-        in
-        f (Obj.magic ())
-      )
-    ;
+    (* Lwt_main.run
+     *   (
+     *     let* f = commit
+     *      ~time:(Obj.magic ())
+     *      ~message:(Obj.magic ())
+     *      (Stdlib.Option.get !last_ctx, 42L)
+     *     in
+     *     f (Obj.magic ())
+     *   )
+     * ; *)
     Fmt.epr "at_exit!!\n%!" ;
     Stdlib.at_exit (fun () ->
         match !writer with None -> () | Some w -> Writer.close w)
