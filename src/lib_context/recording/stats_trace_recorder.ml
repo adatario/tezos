@@ -23,6 +23,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+
 let ( let* ) = ( >>= )
 
 let ( let+ ) = ( >|= )
@@ -377,6 +378,8 @@ module Make
     end) : Recorder.S with module Impl = Impl = struct
   module Writer = Writer (Impl)
 
+  let last_ctx : Impl.t option ref = ref None
+
   let writer = ref None
 
   let setup_writer store_path =
@@ -405,10 +408,6 @@ module Make
     match !writer with
     | None -> raise Misc.Stats_trace_without_init
     | Some w -> w
-
-  let () =
-    Stdlib.at_exit (fun () ->
-        match !writer with None -> () | Some w -> Writer.close w)
 
   module Impl = Impl
 
@@ -643,11 +642,26 @@ module Make
     fun _res -> direct_op_end `Clear_test_chain
 
   (** Not simple direct *)
-  let commit ~time:_ ~message:_ _ =
-    (* let* () = Stats_collector.commit_begin rs.stats context in *)
+  let commit ~time:_ ~message:_ (ctx, _) =
+    let* () = Writer.commit_begin (get_writer ()) ctx in
     Lwt.return @@ fun _res ->
-    (* let* () = Stats_collector.commit_end rs.stats context in *)
+    let* () = Writer.commit_end (get_writer ()) ctx in
     Lwt.return_unit
+
+  let () =
+    Lwt_main.run
+      (
+        let* f = commit
+         ~time:(Obj.magic ())
+         ~message:(Obj.magic ())
+         (Stdlib.Option.get !last_ctx, 42L)
+        in
+        f (Obj.magic ())
+      )
+    ;
+    Fmt.epr "at_exit!!\n%!" ;
+    Stdlib.at_exit (fun () ->
+        match !writer with None -> () | Some w -> Writer.close w)
 
   (** Not simple direct *)
   let commit_test_chain_genesis _ _ =
