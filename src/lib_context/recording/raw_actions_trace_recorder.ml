@@ -58,6 +58,7 @@ struct
   module Impl = Impl
 
   type tree = Impl.tree * int64
+  let last_ctx : Impl.t option ref = ref None
 
   type context = Impl.context * int64
 

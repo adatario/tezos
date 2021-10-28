@@ -45,6 +45,8 @@ module type S = sig
   (** A [Context.t] alongside a unique identifier. *)
   type context = Impl.context * int64
 
+  val last_ctx : Impl.context option ref
+
   (** Dummy type for the observers of lib_context functions that don't take
       specific parameters (e.g. [Tree.shallow] takes an ['a]) *)
   type no_input := unit

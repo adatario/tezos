@@ -107,9 +107,17 @@ module Make
   let ( !! ) t = (Tree_traced.unwrap t, Tree_traced.tracker t)
 
   (** Instanciate the context tracker *)
-  module Context_traced = Make_tracked (struct
-    type t = Impl.context
-  end)
+  module Context_traced = struct
+    include Make_tracked (struct
+      type t = Impl.context
+              end)
+    let wrap v =
+      List.iter (fun (module R: Recorders.RECORDER) ->
+          R.last_ctx := Some v;
+        ) Recorders.l;
+      wrap v
+
+  end
 
   (** Unpack a wrapped context in order to forward it to a recorder *)
   let ( ~~ ) c = (Context_traced.unwrap c, Context_traced.tracker c)
