@@ -41,9 +41,9 @@ let pp name_per_path paths cols_opt =
     | Some v -> v
     | None -> if List.length summaries > 1 then 4 else 5
   in
-  ignore (col_count, name_per_path);
-  assert false
-  (* Fmt.pr "%a\n" (Trace_stats_summary_pp.pp col_count) (name_per_path, summaries) *)
+  (* ignore (col_count, name_per_path); *)
+  (* assert false *)
+  Fmt.pr "%a\n" (Trace_stats_summary_pp.pp col_count) (name_per_path, summaries)
 
 let pp paths named_paths cols_opt =
   let name_per_path, paths =

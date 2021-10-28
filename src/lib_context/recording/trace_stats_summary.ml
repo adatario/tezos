@@ -238,11 +238,15 @@ module Watched_node = struct
     type t = once_per_commit_stat [@@deriving repr]
   end
 
-  module Map = Map.Make (struct
-    type t = Key.t
+  module Map = struct
+    module M = Map.Make (struct
+      type t = Key.t
 
-    let compare = compare
-  end)
+      let compare = compare
+    end)
+
+    include M.Legacy
+  end
 
   type map = Val.t Map.t
 
