@@ -87,6 +87,7 @@ module Span = struct
         `Frequent_op (`Tree `Add);
         `Frequent_op (`Tree `Add_tree);
         `Frequent_op (`Tree `Remove);
+        `Frequent_op (`Tree `Fold);
       ]
 
     let all_frequent_ops : atom_seen list =
@@ -191,7 +192,8 @@ module Span = struct
       type t = Key.t
 
       let compare = compare
-                 end)
+    end)
+
     include M.Legacy
   end
 
@@ -750,7 +752,9 @@ let watched_nodes_folder header block_count =
             Stdlib.List.nth pl.store_after.watched_nodes_length i))
   in
   let accumulate acc row =
-    Stdlib.List.map (fun acc_elt -> Once_per_commit_folder.accumulate acc_elt row) acc
+    Stdlib.List.map
+      (fun acc_elt -> Once_per_commit_folder.accumulate acc_elt row)
+      acc
   in
   let finalise acc =
     Stdlib.List.map2
@@ -860,7 +864,10 @@ let misc_stats_folder header =
   let accumulate (t, t', count) = function
     | `Commit (pl : Def.Commit_op.payload) ->
         (pl.after.timestamp_wall, pl.after.timestamp_cpu, count + 1)
-    | _ -> (t, t', count + 1)
+    | _ ->
+        if (count + 1) mod 500_000 = 0 then
+          Fmt.epr "Seeing op idx=%#d ops\n%!" (count + 1) ;
+        (t, t', count + 1)
   in
   let finalise (t, t', count) =
     ( t -. header.initial_stats.timestamp_wall,
@@ -1208,6 +1215,8 @@ let summarise' header block_count ends_with_close (row_seq : Def.row Seq.t) =
     The number of blocks to consider may be provided in order to truncate the
     summary. *)
 let summarise ?info trace_stats_path =
+  ignore info ;
+  (* let info = Some (1, false) in *)
   let (block_count, ends_with_close) =
     match info with
     | Some (block_count, ends_with_close) -> (block_count, ends_with_close)
@@ -1219,16 +1228,16 @@ let summarise ?info trace_stats_path =
              (fun ((commit_count, has_close) as acc) op ->
                if has_close then acc
                else
-                 ( (match op with
+                 ( (* Fmt.epr "%a\n%!" (Repr.pp Def.row_t) op; *)
+                   (match op with
                    | `Commit _ -> commit_count + 1
                    | _ -> commit_count),
                    false ))
              (0, false)
   in
   if block_count <= 0 then invalid_arg "Can't summarise an empty stats trace" ;
-  let (_, header, row_seq) =
-    Def.open_reader trace_stats_path
-  in
+  let (_, header, row_seq) = Def.open_reader trace_stats_path in
+  Fmt.epr "Let's go\n%!" ;
   let row_seq =
     let aux (seq, commit_count, close_count) =
       let saw_all_commits = commit_count = block_count in
@@ -1245,11 +1254,35 @@ let summarise ?info trace_stats_path =
         | Seq.Nil when this_should_be_a_close ->
             Fmt.failwith "expected a close operation and got end of sequence"
         | Seq.Nil ->
+            (* let op =
+             *   `Commit
+             *     Def.Commit_op.
+             *       {
+             *         duration = Int32.of_float 1.;
+             *         before;
+             *         after =
+             *           {
+             *             before with
+             *             timestamp_wall = before.timestamp_wall + 1.;
+             *             timestamp_cpu = before.timestamp_cpu + 1.;
+             *           }
+             *             store_after
+             *           = {
+             *               watched_nodes_length =
+             *                 Stdlib.List.map (Fun.const 0.) Def.watched_nodes;
+             *             };
+             *         store_before =
+             *           {nodes = 0; leafs = 0; skips = 0; depth = 0; width = 0};
+             *         specs = None;
+             *       }
+             * in
+             * Some (op, (Seq.nil, commit_count + 1, 0)) *)
             Fmt.failwith
               "expected more commit operations and got end of sequence"
         | Seq.Cons ((`Close _ as op), seq) when this_should_be_a_close ->
             Some (op, (seq, commit_count, 1))
-        | _ when this_should_be_a_close -> Fmt.failwith "expected close operation"
+        | _ when this_should_be_a_close ->
+            Fmt.failwith "expected close operation"
         | Seq.Cons (`Close _, _) when this_should_be_a_close ->
             Fmt.failwith "unexpected close operation"
         | Seq.Cons ((`Commit _ as op), seq) ->
