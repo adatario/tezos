@@ -181,7 +181,13 @@ and context = {
   tree : Store.tree;
   (* number of [remove], [add_tree] and [add] calls, not yet flushed *)
   ops : int;
+  (* intermediate operations ever flushed or not *)
+  flushed : bool;
 }
+
+let make_context ?parent ?(tree = Store.Tree.empty) index =
+  let parents = match parent with None -> [] | Some p -> [p] in
+  {index; parents; tree; ops = 0; flushed = false}
 
 type t = context
 
@@ -214,9 +220,9 @@ let exists index key =
 let checkout index key =
   sync index >>= fun () ->
   Store.Commit.of_hash index.repo (Hash.of_context_hash key)
-  >|= Option.map (fun commit ->
-          let tree = Store.Commit.tree commit in
-          {index; tree; parents = [commit]; ops = 0})
+  >|= Option.map (fun parent ->
+          let tree = Store.Commit.tree parent in
+          make_context ~tree ~parent index)
 
 let checkout_exn index key =
   checkout index key >>= function
@@ -236,6 +242,10 @@ let raw_commit ~time ?(message = "") context =
   let parents = List.map Store.Commit.hash context.parents in
   Store.Commit.v context.index.repo ~info ~parents context.tree >|= fun c ->
   Store.Tree.clear context.tree ;
+  (* Once committed, the context itself may be no longer interested.
+     If the context has been a lot, it leaves a huge garbage in memory.
+     Therefore it may be a good timing to perform [Gc.compact]. *)
+  if context.flushed then Gc.full_major () ;
   c
 
 let hash ~time ?(message = "") context =
@@ -292,7 +302,7 @@ let find_tree ctxt key = Tree.find_tree ctxt.tree (data_key key)
 let flush context =
   P.Repo.batch context.index.repo (fun x y _ ->
       Store.save_tree ~clear:true context.index.repo x y context.tree)
-  >|= fun _ -> {context with ops = 0}
+  >|= fun _ -> {context with ops = 0; flushed = true}
 
 let may_flush context =
   if (not context.index.readonly) && context.ops >= !auto_flush then
@@ -489,7 +499,7 @@ let get_branch chain_id = Format.asprintf "%a" Chain_id.pp chain_id
 
 let commit_genesis index ~chain_id ~time ~protocol =
   let tree = Store.Tree.empty in
-  let ctxt = {index; tree; parents = []; ops = 0} in
+  let ctxt = make_context ~tree index in
   (match index.patch_context with
   | None -> return ctxt
   | Some patch_context -> patch_context ctxt)
@@ -699,8 +709,7 @@ module Dumpable_context = struct
     in
     aux tree Fun.id >>= fun () -> Lwt.return !total_visited
 
-  let make_context index =
-    {index; tree = Store.Tree.empty; parents = []; ops = 0}
+  let make_context index = make_context index
 
   let update_context context tree = {context with tree}
 
@@ -1053,8 +1062,7 @@ module Dumpable_context_legacy = struct
     in
     aux tree Fun.id
 
-  let make_context index =
-    {index; tree = Store.Tree.empty; parents = []; ops = 0}
+  let make_context index = make_context index
 
   let update_context context tree = {context with tree}
 
@@ -1172,7 +1180,7 @@ let check_protocol_commit_consistency index ~expected_context_hash
   if Context_hash.equal expected_context_hash computed_context_hash then
     let ctxt =
       let parent = Store.of_private_commit index.repo commit in
-      {index; tree = Store.Tree.empty; parents = [parent]; ops = 0}
+      make_context ~parent index
     in
     add_test_chain ctxt test_chain_status >>= fun ctxt ->
     add_protocol ctxt given_protocol_hash >>= fun ctxt ->
@@ -1379,7 +1387,7 @@ let validate_context_hash_consistency_and_commit ~data_hash
   if Context_hash.equal expected_context_hash computed_context_hash then
     let ctxt =
       let parent = Store.of_private_commit index.repo commit in
-      {index; tree = Store.Tree.empty; parents = [parent]; ops = 0}
+      make_context ~parent index
     in
     add_test_chain ctxt test_chain >>= fun ctxt ->
     add_protocol ctxt protocol_hash >>= fun ctxt ->
