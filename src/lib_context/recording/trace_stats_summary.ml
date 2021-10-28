@@ -379,10 +379,11 @@ type t = {
   curves_sample_count : int;
   moving_average_half_life_ratio : float;
   (* Stats from [Def.header]. *)
-  config : Def.config;
-  hostname : string;
-  word_size : int;
-  timeofday : float;
+  header : Def.header;
+  (* config : Def.config; *)
+  (* hostname : string; *)
+  (* word_size : int; *)
+  (* timeofday : float; *)
   timestamp_wall0 : float;
   timestamp_cpu0 : float;
   (* Stats derived from [Def.row]s. *)
@@ -1177,10 +1178,11 @@ let summarise' header block_count ends_with_close (row_seq : Def.row Seq.t) =
       block_count;
       curves_sample_count = Conf.curves_sample_count;
       moving_average_half_life_ratio = Conf.moving_average_half_life_ratio;
-      config = header.config;
-      hostname = header.hostname;
-      word_size = header.word_size;
-      timeofday = header.timeofday;
+      header = header;
+      (* config = header.config; *)
+      (* hostname = header.hostname; *)
+      (* word_size = header.word_size; *)
+      (* timeofday = header.timeofday; *)
       timestamp_wall0 = header.initial_stats.timestamp_wall;
       timestamp_cpu0 = header.initial_stats.timestamp_cpu;
       elapsed_wall_over_blocks;
