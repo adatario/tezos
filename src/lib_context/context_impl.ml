@@ -208,7 +208,7 @@ let set_hash_version c v =
   if Context_hash.Version.(of_int 0 = v) then return c
   else fail (Tezos_context_helpers.Context.Unsupported_context_hash_version v)
 
-let stats () =
+let stats2 () =
   let ins = Index.Stats.get () in
   let ips = Irmin_pack.Stats.get () in
   Fmt.epr
@@ -241,7 +241,7 @@ let timer () =
 
 let raw_commit ~time ?(message = "") context =
   Fmt.epr "start raw_commit\n%!" ;
-  stats () ;
+  stats2 () ;
   timer () ;
   let info =
     Info.v ~author:"Tezos" ~date:(Time.Protocol.to_seconds time) message
@@ -257,12 +257,12 @@ let raw_commit ~time ?(message = "") context =
     Gc.full_major () ;
   Fmt.epr "end raw_commit\n%!" ;
   timer () ;
-  stats () ;
+  stats2 () ;
   h
 
 let hash ~time ?(message = "") context =
   Fmt.epr "start hash ro = %b\n%!" context.index.readonly ;
-  stats () ;
+  stats2 () ;
   timer () ;
   let info =
     Info.v ~author:"Tezos" ~date:(Time.Protocol.to_seconds time) message
@@ -274,7 +274,7 @@ let hash ~time ?(message = "") context =
   let x = Hash.to_context_hash x in
   Fmt.epr "end hash ro = %b\n%!" context.index.readonly ;
   timer () ;
-  stats () ;
+  stats2 () ;
   x
 
 let commit ~time ?message context =
@@ -290,6 +290,8 @@ type key = string list
 type value = bytes
 
 type tree = Store.tree
+
+module Tree = Tezos_context_helpers.Context.Make_tree (Store)
 
 type tree_stats = Tree.tree_stats = {
   nodes : int;
@@ -340,14 +342,14 @@ let find_tree ctxt key = Tree.find_tree ctxt.tree (data_key key)
 
 let flush context =
   Fmt.epr "start flush \n%!" ;
-  stats () ;
+  stats2 () ;
   timer () ;
   P.Repo.batch context.index.repo (fun x y _ ->
       Store.save_tree ~clear:true context.index.repo x y context.tree)
   >|= fun _ ->
   Fmt.epr "end flush\n%!" ;
   timer () ;
-  stats () ;
+  stats2 () ;
   {context with added_trees = 0}
 
 let may_flush key context =
