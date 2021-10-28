@@ -223,22 +223,6 @@ let checkout_exn index key =
   | None -> Lwt.fail Not_found
   | Some p -> Lwt.return p
 
-(* unshallow possible 1-st level objects from previous partial
-   checkouts ; might be better to pass directly the list of shallow
-   objects. *)
-let unshallow context =
-  Store.Tree.list context.tree [] >>= fun children ->
-  P.Repo.batch context.index.repo (fun x y _ ->
-      List.iter_s
-        (fun (s, k) ->
-          match Store.Tree.destruct k with
-          | `Contents _ -> Lwt.return ()
-          | `Node _ ->
-              Store.Tree.get_tree context.tree [s] >>= fun tree ->
-              Store.save_tree ~clear:true context.index.repo x y tree
-              >|= fun _ -> ())
-        children)
-
 let get_hash_version _c = Context_hash.Version.of_int 0
 
 let set_hash_version c v =
@@ -250,7 +234,6 @@ let raw_commit ~time ?(message = "") context =
     Info.v ~author:"Tezos" ~date:(Time.Protocol.to_seconds time) message
   in
   let parents = List.map Store.Commit.hash context.parents in
-  unshallow context >>= fun () ->
   Store.Commit.v context.index.repo ~info ~parents context.tree >|= fun c ->
   Store.Tree.clear context.tree ;
   c
