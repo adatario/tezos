@@ -1234,7 +1234,8 @@ let summarise ?info trace_stats_path =
              (fun ((commit_count, has_close) as acc) op ->
                if has_close then acc
                else
-                 ( (* Fmt.epr "%a\n%!" (Repr.pp Def.row_t) op; *)
+                 (
+                   Fmt.epr "%a\n%!" (Repr.pp Def.row_t) op;
                    (match op with
                    | `Commit _ -> commit_count + 1
                    | _ -> commit_count),

@@ -643,9 +643,11 @@ module Make
 
   (** Not simple direct *)
   let commit ~time:_ ~message:_ (ctx, _) =
+    Fmt.epr "stats_trace_recorder commit start\n%!";
     let* () = Writer.commit_begin (get_writer ()) ctx in
     Lwt.return @@ fun _res ->
     let* () = Writer.commit_end (get_writer ()) ctx in
+    Fmt.epr "stats_trace_recorder commit end\n%!";
     Lwt.return_unit
 
   let () =
