@@ -83,7 +83,8 @@ type summary = Summary.t
 
 (** Seconds minutes, Seconds 3 digits, Seconds milli, Seconds micro, Real giga,
     Real mega, Real as integer, Real 3 digits, Percent *)
-type scalar_format_fixed = [`SM | `S3 | `Sm | `Su | `RG | `RM | `Ri | `R3 | `P | `S]
+type scalar_format_fixed =
+  [`SM | `S3 | `Sm | `Su | `RG | `RM | `Ri | `R3 | `P | `S]
 
 let pp_scalar_fixed ppf (format, v) =
   if Float.is_nan v then Format.fprintf ppf "n/a"
@@ -398,17 +399,22 @@ module Table2 = struct
         summaries
     in
     let pb :
+        ?use_max:bool ->
         ?scale:float ->
         ?f:_ ->
         string ->
         (summary -> Summary.bag_stat) ->
         summary_floor =
-     fun ?(scale = 1.) ?(f = (`RM, `Ri, `R3)) stat_name lbs_of_summary ->
+     fun ?(use_max = false)
+         ?(scale = 1.)
+         ?(f = (`RM, `Ri, `R3))
+         stat_name
+         lbs_of_summary ->
       let variables =
         zip (fun s ->
             let vs = (lbs_of_summary s).diff_per_block in
             let vs' = (lbs_of_summary s).value_after_commit in
-            ( vs'.diff *. scale,
+            ( (if use_max then fst vs'.max_value *. scale else vs'.diff *. scale),
               fst vs.min_value *. scale,
               fst vs.max_value *. scale,
               vs.mean *. scale,
@@ -481,9 +487,14 @@ module Table2 = struct
         pb "gc.minor_collections" (fun s -> s.gc.minor_collections);
         pb "gc.major_collections" (fun s -> s.gc.major_collections);
         `Spacer;
-        pb "rusage.utime" ~f:(`Ri, `R3, `R3) (fun s -> s.rusage.utime);
-        pb "rusage.stime" ~f:(`Ri, `R3, `R3) (fun s -> s.rusage.stime);
-        pb "rusage.maxrss" ~scale:1000. (fun s -> s.rusage.maxrss);
+        pb "rusage.utime" ~f:(`S, `S, `S) (fun s -> s.rusage.utime);
+        pb "rusage.stime" ~f:(`S, `S, `S) (fun s -> s.rusage.stime);
+        pb
+          ~use_max:true
+          "rusage.maxrss"
+          ~scale:1000.
+          ~f:(`RG, `RG, `RG)
+          (fun s -> s.rusage.maxrss);
         pb "rusage.minflt" (fun s -> s.rusage.minflt);
         pb ~f:(`Ri, `Ri, `R3) "rusage.majflt" (fun s -> s.rusage.majflt);
         pb "rusage.inblock" (fun s -> s.rusage.inblock);
@@ -613,18 +624,18 @@ module Table3 = struct
     in
     [
       `Spacer;
-      span_durations ~f:(`S3, `Sm) `Block;
-      span_durations ~f:(`S3, `Sm) `Buildup;
-      span_durations ~f:(`S3, `Sm) `Commit;
+      span_durations ~f:(`S, `S) `Block;
+      span_durations ~f:(`S, `S) `Buildup;
+      span_durations ~f:(`S, `S) `Commit;
       `Spacer;
     ]
     @ List.map
         span_durations
         (List.filter (( <> ) (`Frequent_op `Init)) Span.Key.all_frequent_ops)
     @ [
-        span_durations ~f:(`S3, `S3) (`Frequent_op `Init);
-        span_durations ~f:(`S3, `S3) `Close;
-        span_durations ~f:(`S3, `Sm) `Unseen;
+        span_durations ~f:(`S, `S) (`Frequent_op `Init);
+        span_durations ~f:(`S, `S) `Close;
+        span_durations ~f:(`S, `S) `Unseen;
         `Spacer;
         v "Major heap bytes after commit" (fun s -> s.gc.major_heap_bytes);
         `Spacer;
@@ -633,7 +644,8 @@ module Table3 = struct
 
   let matrix_of_data_floor
       (`Data
-        ((_scalar_format_a, _scalar_format_b), floor_name, names_and_variables)) =
+        ((scalar_format_a, _scalar_format_b), floor_name, names_and_variables))
+      =
     let only_one_summary = List.length names_and_variables = 1 in
     let (_, variables) = List.split names_and_variables in
     let (cumu0, _, min0, max0, avg0) = Stdlib.List.hd variables in
@@ -641,8 +653,7 @@ module Table3 = struct
     let box_of_scalar scalar_format row_idx v0 v =
       let ratio = v /. v0 in
       let show_percent =
-        if scalar_format = `P then
-          `No
+        if scalar_format = `P then `No
         else if only_one_summary then
           (* Percents are only needed for comparisons between summaries. *)
           `No
@@ -675,11 +686,11 @@ module Table3 = struct
           let c =
             let (cumu, _share, min, max, avg) = variable in
             [
-              box_of_scalar `S row_idx cumu0 cumu;
+              box_of_scalar scalar_format_a row_idx cumu0 cumu;
               box_of_scalar `P row_idx Float.nan _share;
-              box_of_scalar `S row_idx min0 min;
-              box_of_scalar `S row_idx max0 max;
-              box_of_scalar `S row_idx avg0 avg;
+              box_of_scalar scalar_format_a row_idx min0 min;
+              box_of_scalar scalar_format_a row_idx max0 max;
+              box_of_scalar scalar_format_a row_idx avg0 avg;
             ]
           in
           a :: b @ c)
