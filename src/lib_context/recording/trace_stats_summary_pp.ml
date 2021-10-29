@@ -108,6 +108,7 @@ let pp_scalar_fixed ppf (format, v) =
 module Table0 = struct
   let summary_config_entries =
     [
+      `Message;
       `Hostname;
       `Os_type;
       `Big_endian;
@@ -131,6 +132,7 @@ module Table0 = struct
     ]
 
   let name_of_summary_config_entry = function
+    | `Message -> "message"
     | `Hostname -> "hostname"
     | `Os_type -> "os type"
     | `Big_endian -> "big endian"
@@ -153,6 +155,8 @@ module Table0 = struct
     | `Gc_custom_minor_max_size -> "gc.custom_minor_max_size"
 
   let cell_of_summary_config (s : summary) = function
+    | `Message -> (
+        match s.header.config.message with None -> "\xC3\xB8" | Some m -> m)
     | `Hostname -> s.header.hostname
     | `Os_type -> s.header.os_type
     | `Big_endian -> string_of_bool s.header.big_endian
@@ -543,7 +547,7 @@ end
 
 module Table3 = struct
   (** min, max, avg *)
-  type variable = float * float * float
+  type variable = float * float * float * float
 
   type summary_floor =
     [ `Spacer
@@ -554,7 +558,7 @@ module Table3 = struct
 
   let create_header_rows summaries =
     let only_one_summary = List.length summaries = 1 in
-    ["" :: (if only_one_summary then [] else [""]) @ ["min"; "max"; "avg"]]
+    ["" :: (if only_one_summary then [] else [""]) @ ["cumu"; "min"; "max"; "avg"]]
     |> Pb.matrix_to_text
     |> Pb.align_matrix `Center
 
@@ -573,14 +577,14 @@ module Table3 = struct
       let variables =
         zip (fun s ->
             let vs = (lbs_of_summary s).value_after_commit in
-            (fst vs.min_value, fst vs.max_value, vs.mean))
+            (Float.nan, fst vs.min_value, fst vs.max_value, vs.mean))
       in
       `Data (f, stat_name, variables)
     in
     let cpu_usage_variables =
       zip (fun s ->
           let vs = s.cpu_usage in
-          (fst vs.min_value, fst vs.max_value, vs.mean))
+          (Float.nan, fst vs.min_value, fst vs.max_value, vs.mean))
     in
     let span_durations : ?f:_ -> [< Span.Key.t] -> summary_floor =
      fun ?(f = (`Sm, `Su)) op ->
@@ -590,7 +594,8 @@ module Table3 = struct
         let open Summary in
         zip (fun s ->
             let vs = Span.(Map.find op s.span).duration in
-            (fst vs.min_value, fst vs.max_value, vs.mean))
+            let vs' = Span.(Map.find op s.span).cumu_duration in
+            (vs'.diff, fst vs.min_value, fst vs.max_value, vs.mean))
       in
       `Data (f, name, variables)
     in
@@ -619,7 +624,7 @@ module Table3 = struct
         ((scalar_format_a, scalar_format_b), floor_name, names_and_variables)) =
     let only_one_summary = List.length names_and_variables = 1 in
     let (_, variables) = List.split names_and_variables in
-    let (min0, max0, avg0) = Stdlib.List.hd variables in
+    let (cumu0, min0, max0, avg0) = Stdlib.List.hd variables in
 
     let box_of_scalar scalar_format row_idx v0 v =
       let ratio = v /. v0 in
@@ -655,8 +660,9 @@ module Table3 = struct
           let a = Pb.text (if row_idx = 0 then floor_name else "") in
           let b = if only_one_summary then [] else [Pb.text summary_name] in
           let c =
-            let (min, max, avg) = variable in
+            let (cumu, min, max, avg) = variable in
             [
+              box_of_scalar scalar_format_a row_idx cumu0 cumu;
               box_of_scalar scalar_format_b row_idx min0 min;
               box_of_scalar scalar_format_a row_idx max0 max;
               box_of_scalar scalar_format_b row_idx avg0 avg;
