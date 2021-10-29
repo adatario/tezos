@@ -631,7 +631,7 @@ module Make
     fun _res -> direct_op_end `Set_head
 
   (** Not simple direct *)
-  let commit_genesis _ ~chain_id:_ ~time:_ ~protocol:_ =
+   let commit_genesis _ ~chain_id:_ ~time:_ ~protocol:_ =
     (* let* () = Stats_collector.commit_begin rs.stats context in *)
     Lwt.return @@ fun _res ->
     (* let* () = Stats_collector.commit_end rs.stats context in *)
@@ -647,6 +647,7 @@ module Make
     let* () = Writer.commit_begin (get_writer ()) ctx in
     Lwt.return @@ fun _res ->
     let* () = Writer.commit_end (get_writer ()) ctx in
+    Writer.flush (get_writer ());
     Fmt.epr "stats_trace_recorder commit end\n%!";
     Lwt.return_unit
 
