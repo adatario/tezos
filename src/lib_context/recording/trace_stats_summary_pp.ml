@@ -83,7 +83,7 @@ type summary = Summary.t
 
 (** Seconds minutes, Seconds 3 digits, Seconds milli, Seconds micro, Real giga,
     Real mega, Real as integer, Real 3 digits, Percent *)
-type scalar_format_fixed = [`SM | `S3 | `Sm | `Su | `RG | `RM | `Ri | `R3 | `P]
+type scalar_format_fixed = [`SM | `S3 | `Sm | `Su | `RG | `RM | `Ri | `R3 | `P | `S]
 
 let pp_scalar_fixed ppf (format, v) =
   if Float.is_nan v then Format.fprintf ppf "n/a"
@@ -103,6 +103,7 @@ let pp_scalar_fixed ppf (format, v) =
     | `Ri -> Format.fprintf ppf "%#d" (Float.round v |> int_of_float)
     | `R3 -> Format.fprintf ppf "%.3f" v
     | `P -> Format.fprintf ppf "%.0f%%" (v *. 100.)
+    | `S -> Utils.create_pp_seconds [v] ppf v
 
 (** Summary *)
 module Table0 = struct
@@ -553,7 +554,7 @@ module Table2 = struct
 end
 
 module Table3 = struct
-  (** min, max, avg *)
+  (** cumu, share, min, max, avg *)
   type variable = float * float * float * float * float
 
   type summary_floor =
@@ -632,7 +633,7 @@ module Table3 = struct
 
   let matrix_of_data_floor
       (`Data
-        ((scalar_format_a, scalar_format_b), floor_name, names_and_variables)) =
+        ((_scalar_format_a, _scalar_format_b), floor_name, names_and_variables)) =
     let only_one_summary = List.length names_and_variables = 1 in
     let (_, variables) = List.split names_and_variables in
     let (cumu0, _, min0, max0, avg0) = Stdlib.List.hd variables in
@@ -640,7 +641,9 @@ module Table3 = struct
     let box_of_scalar scalar_format row_idx v0 v =
       let ratio = v /. v0 in
       let show_percent =
-        if only_one_summary then
+        if scalar_format = `P then
+          `No
+        else if only_one_summary then
           (* Percents are only needed for comparisons between summaries. *)
           `No
         else if Float.is_finite ratio = false then
@@ -650,7 +653,6 @@ module Table3 = struct
           (* The first row of a floor is always 100%, it is prettier without
              displaying it. *)
           `Shadow
-        else if scalar_format = `P then `Shadow
         else `Yes
       in
       let pp_percent ppf =
@@ -673,11 +675,11 @@ module Table3 = struct
           let c =
             let (cumu, _share, min, max, avg) = variable in
             [
-              box_of_scalar scalar_format_a row_idx cumu0 cumu;
+              box_of_scalar `S row_idx cumu0 cumu;
               box_of_scalar `P row_idx Float.nan _share;
-              box_of_scalar scalar_format_b row_idx min0 min;
-              box_of_scalar scalar_format_a row_idx max0 max;
-              box_of_scalar scalar_format_b row_idx avg0 avg;
+              box_of_scalar `S row_idx min0 min;
+              box_of_scalar `S row_idx max0 max;
+              box_of_scalar `S row_idx avg0 avg;
             ]
           in
           a :: b @ c)
