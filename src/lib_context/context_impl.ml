@@ -232,9 +232,10 @@ let stats2 () =
     ips.appended_hashes
     ips.appended_offsets ;
   Fmt.epr "tree counters = %a\n%!" Store.Tree.dump_counters () ;
-  Index.Stats.reset_stats () ;
-  Irmin_pack.Stats.reset_stats () ;
-  Store.Tree.reset_counters ()
+  (* Index.Stats.reset_stats () ; *)
+  (* Irmin_pack.Stats.reset_stats () ; *)
+  (* Store.Tree.reset_counters () *)
+  ()
 
 let timer () =
   Fmt.epr "%+04.0fmin\n%!" (Mtime.Span.to_min (Mtime_clock.elapsed ()))
