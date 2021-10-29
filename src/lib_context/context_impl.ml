@@ -234,7 +234,13 @@ let hash ~time ?(message = "") context =
   Hash.to_context_hash x
 
 let commit ~time ?message context =
+  Fmt.epr "let's go for raw commit\n%!";
+  Index_unix.Private.Raw.print_fds ();
+  Fmt.epr "goooooo!\n%!";
   raw_commit ~time ?message context >|= fun commit ->
+  Fmt.epr "done with commit\n%!";
+  Index_unix.Private.Raw.print_fds ();
+  Fmt.epr "bye bye\n%!";
   Hash.to_context_hash (Store.Commit.hash commit)
 
 (*-- Generic Store Primitives ------------------------------------------------*)
