@@ -136,7 +136,7 @@ module Table0 = struct
     | `Hostname -> "hostname"
     | `Os_type -> "os type"
     | `Big_endian -> "big endian"
-    | `Runtime_params -> "runtime params (todo: filter out gc params)"
+    | `Runtime_params -> "runtime params (no gc)"
     | `Backend_type -> "backend type"
     | `Ocaml_version -> "ocaml version"
     | `Word_size -> "word size"
@@ -160,7 +160,14 @@ module Table0 = struct
     | `Hostname -> s.header.hostname
     | `Os_type -> s.header.os_type
     | `Big_endian -> string_of_bool s.header.big_endian
-    | `Runtime_params -> s.header.runtime_parameters
+    | `Runtime_params ->
+        let outs = ["a"; "s"; "i"; "o"; "O"; "l"; "M"; "m"; "n"] in
+        Stdlib.String.split_on_char ',' s.header.runtime_parameters
+        |> List.filter_map (fun s ->
+               match Stdlib.String.split_on_char '=' s with
+               | [k; _v] when Stdlib.List.mem k outs -> None
+               | _ -> Some s)
+        |> String.concat ","
     | `Backend_type -> (
         match s.header.backend_type with
         | `Native -> "native"
@@ -547,7 +554,7 @@ end
 
 module Table3 = struct
   (** min, max, avg *)
-  type variable = float * float * float * float
+  type variable = float * float * float * float * float
 
   type summary_floor =
     [ `Spacer
@@ -558,7 +565,10 @@ module Table3 = struct
 
   let create_header_rows summaries =
     let only_one_summary = List.length summaries = 1 in
-    ["" :: (if only_one_summary then [] else [""]) @ ["cumu"; "min"; "max"; "avg"]]
+    [
+      "" :: (if only_one_summary then [] else [""])
+      @ ["cumu"; "share"; "min"; "max"; "avg"];
+    ]
     |> Pb.matrix_to_text
     |> Pb.align_matrix `Center
 
@@ -577,14 +587,14 @@ module Table3 = struct
       let variables =
         zip (fun s ->
             let vs = (lbs_of_summary s).value_after_commit in
-            (Float.nan, fst vs.min_value, fst vs.max_value, vs.mean))
+            (Float.nan, Float.nan, fst vs.min_value, fst vs.max_value, vs.mean))
       in
       `Data (f, stat_name, variables)
     in
     let cpu_usage_variables =
       zip (fun s ->
           let vs = s.cpu_usage in
-          (Float.nan, fst vs.min_value, fst vs.max_value, vs.mean))
+          (Float.nan, Float.nan, fst vs.min_value, fst vs.max_value, vs.mean))
     in
     let span_durations : ?f:_ -> [< Span.Key.t] -> summary_floor =
      fun ?(f = (`Sm, `Su)) op ->
@@ -594,8 +604,9 @@ module Table3 = struct
         let open Summary in
         zip (fun s ->
             let vs = Span.(Map.find op s.span).duration in
-            let vs' = Span.(Map.find op s.span).cumu_duration in
-            (vs'.diff, fst vs.min_value, fst vs.max_value, vs.mean))
+            let diff = Span.(Map.find op s.span).cumu_duration.diff in
+            let diff' = Span.(Map.find `Block s.span).cumu_duration.diff in
+            (diff, diff /. diff', fst vs.min_value, fst vs.max_value, vs.mean))
       in
       `Data (f, name, variables)
     in
@@ -624,7 +635,7 @@ module Table3 = struct
         ((scalar_format_a, scalar_format_b), floor_name, names_and_variables)) =
     let only_one_summary = List.length names_and_variables = 1 in
     let (_, variables) = List.split names_and_variables in
-    let (cumu0, min0, max0, avg0) = Stdlib.List.hd variables in
+    let (cumu0, _, min0, max0, avg0) = Stdlib.List.hd variables in
 
     let box_of_scalar scalar_format row_idx v0 v =
       let ratio = v /. v0 in
@@ -660,9 +671,10 @@ module Table3 = struct
           let a = Pb.text (if row_idx = 0 then floor_name else "") in
           let b = if only_one_summary then [] else [Pb.text summary_name] in
           let c =
-            let (cumu, min, max, avg) = variable in
+            let (cumu, _share, min, max, avg) = variable in
             [
               box_of_scalar scalar_format_a row_idx cumu0 cumu;
+              box_of_scalar `P row_idx Float.nan _share;
               box_of_scalar scalar_format_b row_idx min0 min;
               box_of_scalar scalar_format_a row_idx max0 max;
               box_of_scalar scalar_format_b row_idx avg0 avg;
@@ -1131,7 +1143,8 @@ let unsafe_pp sample_count ppf summary_names (summaries : Summary.t list) =
   let table3 =
     let header_rows = Table3.create_header_rows summaries in
     let body_rows =
-      let col_count = 4 + 1 + if List.length summaries = 1 then 0 else 1 in
+      let col_count = 5 + 1 + if List.length summaries = 1 then 0 else 1 in
+      (* let col_count = 4 + 1 + if List.length summaries = 1 then 0 else 1 in *)
       Table3.floors_of_summaries summary_names summaries
       |> List.map (Table3.matrix_of_floor col_count)
       |> List.concat
