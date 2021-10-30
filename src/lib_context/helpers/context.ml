@@ -68,7 +68,7 @@ module Make_tree (Store : DB) = struct
         Store.Tree.fold
           ?depth
           ~force:`True
-          ~cache:false
+          ~cache:true
           ~uniq:`False
           ~order:`Sorted
           ~tree:(fun k t acc ->
