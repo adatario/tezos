@@ -234,7 +234,11 @@ let hash ~time ?(message = "") context =
   Hash.to_context_hash x
 
 let commit ~time ?message context =
+  Printf.eprintf "> Go for commit\n%!";
+  Tezos_context_helpers.stats.report ();
   raw_commit ~time ?message context >|= fun commit ->
+  Printf.eprintf "> Done with commit\n%!";
+  Tezos_context_helpers.stats.report ();
   Hash.to_context_hash (Store.Commit.hash commit)
 
 (*-- Generic Store Primitives ------------------------------------------------*)

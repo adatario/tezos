@@ -65,6 +65,7 @@ module Make_tree (Store : DB) = struct
     find_tree t k >>= function
     | None -> Lwt.return init
     | Some t ->
+        incr Stats.fold ;
         Store.Tree.fold
           ?depth
           ~force:`True
@@ -73,8 +74,16 @@ module Make_tree (Store : DB) = struct
           ~order:`Sorted
           ~tree:(fun k t acc ->
             match kind t with
-            | `Value -> if k = [] then Lwt.return acc else f k t acc
-            | `Tree -> f k t acc)
+            | `Value ->
+                if k = [] then (
+                  incr Stats.fold_rootval ;
+                  Lwt.return acc)
+                else (
+                  incr Stats.fold_value ;
+                  f k t acc)
+            | `Tree ->
+                incr Stats.fold_tree ;
+                f k t acc)
           t
           init
 
