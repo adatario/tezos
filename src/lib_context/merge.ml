@@ -7,9 +7,7 @@ let main path =
   Printf.eprintf "making index\n%!";
   let v = Index.v ~readonly:false ~fresh:false path ~log_size:2500000 in
   Printf.eprintf "filtering\n%!";
-  let () =
-    Index.filter v (fun _ -> true)
-  in
+  let () = Index.filter v (fun _ -> true) in
   Printf.eprintf "Bye\n%!";
   exit 1
 

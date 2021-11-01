@@ -648,6 +648,7 @@ module Make
     Lwt.return @@ fun _res ->
     let* () = Writer.commit_end (get_writer ()) ctx in
     Writer.flush (get_writer ());
+    Writer.close (get_writer ());
     Fmt.epr "stats_trace_recorder commit end\n%!";
     Lwt.return_unit
 
