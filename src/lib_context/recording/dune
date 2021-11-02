@@ -8,10 +8,33 @@
             tezos-context.sigs
 	    repr
             irmin
-	    rusage)
- (preprocess
+	    rusage bentov printbox printbox.unicode)
+(preprocess
   (pps ppx_repr ppx_deriving.enum))
- (flags (:standard -open Tezos_shell_services
+(modules
+misc
+raw_actions_trace_definition
+raw_actions_trace_recorder
+recorder
+shim
+stats_trace_definition
+stats_trace_recorder
+trace_common
+trace_auto_file_format
+trace_auto_file_format_intf
+; trace_raw_actions_summary
+trace_stats_summary
+; trace_stats_summary_cb
+trace_stats_summary_conf
+trace_stats_summary_pp
+trace_stats_summary_utils
+)
+(flags (:standard -open Tezos_shell_services
                    -open Tezos_base__TzPervasives
                    -open Tezos_stdlib_unix
                    -open Tezos_stdlib)))
+
+(executable
+ (name manage_stats)
+ (modules manage_stats)
+ (libraries cmdliner tezos-context.recording tezos-hacl-glue-unix))
