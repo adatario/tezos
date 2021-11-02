@@ -643,10 +643,13 @@ module Make
     fun _res -> direct_op_end `Clear_test_chain
 
   (** Not simple direct *)
-  let commit ~time:_ ~message:_ _ =
-    (* let* () = Stats_collector.commit_begin rs.stats context in *)
+  let commit ~time:_ ~message:_ (ctx, _) =
+    Fmt.epr "stats_trace_recorder commit start\n%!";
+    let* () = Writer.commit_begin (get_writer ()) ctx in
     Lwt.return @@ fun _res ->
-    (* let* () = Stats_collector.commit_end rs.stats context in *)
+    let* () = Writer.commit_end (get_writer ()) ctx in
+    Writer.flush (get_writer ());
+    Fmt.epr "stats_trace_recorder commit end\n%!";
     Lwt.return_unit
 
   (** Not simple direct *)
