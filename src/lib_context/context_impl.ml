@@ -236,11 +236,11 @@ let hash ~time ?(message = "") context =
 let commit ~time ?message context =
   Printf.eprintf "> Go for commit\n%!" ;
   Tezos_context_helpers.Stats.report () ;
-  Fmt.epr "%a\n%!" (Repr.pp Irmin_pack.Stats.t) (Irmin_pack.Stats.get ()) ;
+  (* Fmt.epr "%a\n%!" (Repr.pp Irmin_pack.Stats.t) (Irmin_pack.Stats.get ()) ; *)
   raw_commit ~time ?message context >|= fun commit ->
   Printf.eprintf "> Done with commit\n%!" ;
   Tezos_context_helpers.Stats.report () ;
-  Fmt.epr "%a\n%!" (Repr.pp Irmin_pack.Stats.t) (Irmin_pack.Stats.get ()) ;
+  (* Fmt.epr "%a\n%!" (Repr.pp Irmin_pack.Stats.t) (Irmin_pack.Stats.get ()) ; *)
   Hash.to_context_hash (Store.Commit.hash commit)
 
 (*-- Generic Store Primitives ------------------------------------------------*)
