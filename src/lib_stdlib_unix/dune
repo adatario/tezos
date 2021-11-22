@@ -13,7 +13,7 @@
   ipaddr.unix
   re
   ptime
-  ptime.clock.os
+  ptime.clock.os fmt
   mtime
   mtime.clock.os
   lwt_log)
