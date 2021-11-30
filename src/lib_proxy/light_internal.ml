@@ -72,7 +72,7 @@ module Merkle = struct
               | Node -> `Node hash_str
             in
             return @@ Store.Tree.shallow repo irmin_hash)
-    | Data raw_context -> Lwt_result.ok @@ raw_context_to_irmin_tree raw_context
+    | Data raw_context -> lwt_ok @@ raw_context_to_irmin_tree raw_context
     | Continue subtree -> merkle_tree_to_irmin_tree repo subtree
 
   and merkle_tree_to_irmin_tree repo mtree : (Store.tree, string) result Lwt.t =

@@ -26,26 +26,18 @@
 
 open Tezos_context_encoding.Context
 
-module type DB =
-  Irmin.S
-    with type key = Path.t
-     and type contents = Contents.t
-     and type branch = Branch.t
-     and type hash = Hash.t
-     and type step = Path.step
-     and type metadata = Metadata.t
-     and type Key.step = Path.step
+module type DB = Irmin.Generic_key.S with module Schema = Schema
 
 module Make_tree (Store : DB) = struct
   include Store.Tree
 
   let pp = Irmin.Type.pp Store.tree_t
 
-  let empty _ = Store.Tree.empty
+  let empty _ = Store.Tree.empty ()
 
   let equal = Irmin.Type.(unstage (equal Store.tree_t))
 
-  let is_empty t = equal Store.Tree.empty t
+  let is_empty t = equal (Store.Tree.empty ()) t
 
   let hash t = Hash.to_context_hash (Store.Tree.hash t)
 
@@ -59,7 +51,7 @@ module Make_tree (Store : DB) = struct
     | `Contents (c, _) -> Store.Tree.Contents.force_exn c >|= Option.some
     | `Node _ -> Lwt.return_none
 
-  let of_value _ v = Store.Tree.add Store.Tree.empty [] v
+  let of_value _ v = Store.Tree.add (Store.Tree.empty ()) [] v
 
   let fold ?depth t k ~(order : [`Sorted | `Undefined]) ~init ~f =
     find_tree t k >>= function
@@ -157,11 +149,14 @@ module Make_tree (Store : DB) = struct
     fun () -> Store.Repo.v @@ Irmin_pack.config @@ random_store_name ()
 
   let shallow repo kinded_hash =
-    Store.Tree.shallow
-      repo
-      (match kinded_hash with
+    let kinded_hash =
+      match kinded_hash with
       | `Node hash -> `Node (Hash.of_context_hash hash)
-      | `Contents hash -> `Contents (Hash.of_context_hash hash, ()))
+      | `Contents hash -> `Contents (Hash.of_context_hash hash, ())
+    in
+    Store.Tree.of_hash repo kinded_hash >>= function
+    | None -> Lwt.fail_with "convert hash to tree"
+    | Some tree -> Lwt.return tree
 
   let list tree ?offset ?length key =
     Store.Tree.list ~cache:true tree ?offset ?length key

@@ -73,7 +73,7 @@ let get_core (module Light_proto : Light_proto.PROTO_RPCS)
     let shallow_tree_of_merkle_tree repo mtree =
       let open Lwt_result_syntax in
       let* tree = Merkle.merkle_tree_to_irmin_tree repo mtree in
-      return (Store.shallow_of_tree repo tree)
+      Store.shallow_of_tree repo tree >>= fun tree -> return tree
 
     let hash_of_merkle_tree repo mtree =
       let open Lwt_result_syntax in

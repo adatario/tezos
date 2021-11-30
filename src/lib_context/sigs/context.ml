@@ -215,6 +215,6 @@ module type S = sig
 
     val make_repo : unit -> repo Lwt.t
 
-    val shallow : repo -> kinded_hash -> tree
+    val shallow : repo -> kinded_hash -> tree Lwt.t
   end
 end

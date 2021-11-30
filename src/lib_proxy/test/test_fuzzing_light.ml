@@ -161,9 +161,10 @@ let test_union_irmin_empty =
   let direct_tree =
     Lwt_main.run @@ Merkle.merkle_tree_to_irmin_tree repo mtree |> get_ok
   in
-  let shallow_tree = Store.shallow_of_tree repo direct_tree in
   let union_tree =
-    Lwt_main.run @@ Merkle.union_irmin_tree_merkle_tree repo shallow_tree mtree
+    Lwt_main.run
+    @@ ( Store.shallow_of_tree repo direct_tree >>= fun shallow_tree ->
+         Merkle.union_irmin_tree_merkle_tree repo shallow_tree mtree )
     |> get_ok
   in
   Light_lib.check_irmin_tree_eq direct_tree union_tree
@@ -364,7 +365,7 @@ module HashStability = struct
     let open Lwt_syntax in
     if (Store.Tree.hash tree |> Context_hash.hash) mod 2 = 0 then
       (* Full shallow *)
-      Lwt.return @@ make_tree_shallow repo tree
+      make_tree_shallow repo tree
     else
       (* Maybe shallow some sub-trees *)
       let* dir = Store.Tree.list tree [] in

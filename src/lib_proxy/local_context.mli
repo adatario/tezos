@@ -26,4 +26,4 @@
 include module type of Tezos_context_memory.Context
 
 (** [shallow_of_tree repo t] returns a shallow tree with the same hash as [t]. *)
-val shallow_of_tree : Tree.repo -> tree -> tree
+val shallow_of_tree : Tree.repo -> tree -> tree Lwt.t

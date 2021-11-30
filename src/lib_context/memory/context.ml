@@ -25,10 +25,12 @@
 (*****************************************************************************)
 
 open Tezos_context_encoding.Context
-module Store =
-  Irmin_pack_mem.Make (Node) (Commit) (Conf) (Metadata) (Contents) (Path)
-    (Branch)
-    (Hash)
+
+module Store = struct
+  module Maker = Irmin_pack_mem.Maker (Conf)
+  include Maker.Make (Schema)
+  module Schema = Tezos_context_encoding.Context.Schema
+end
 
 type index = Store.Repo.t
 
@@ -70,7 +72,7 @@ let checkout_exn index key =
    objects. *)
 let unshallow context =
   Store.Tree.list context.tree [] >>= fun children ->
-  Store.Private.Repo.batch context.repo (fun x y _ ->
+  Store.Backend.Repo.batch context.repo (fun x y _ ->
       List.iter_s
         (fun (s, k) ->
           match Store.Tree.destruct k with
@@ -82,22 +84,30 @@ let unshallow context =
 
 let raw_commit ~time ?(message = "") context =
   let info =
-    Irmin.Info.v ~date:(Time.Protocol.to_seconds time) ~author:"Tezos" message
+    Store.Info.v (Time.Protocol.to_seconds time) ~author:"Tezos" ~message
   in
-  let parents = List.map Store.Commit.hash context.parents in
+  let parents = List.map Store.Commit.key context.parents in
   unshallow context >>= fun () ->
   Store.Commit.v context.repo ~info ~parents context.tree >|= fun h ->
   Store.Tree.clear context.tree ;
   h
 
+let kinded_key_to_key tree : Store.node_key =
+  match Store.Tree.key tree with
+  | None -> Fmt.failwith "kinded_key_to_key"
+  | Some key -> (
+      match key with
+      | `Contents (_, ()) -> Fmt.failwith "kinded_key_to_key: expected node"
+      | `Node key -> key)
+
 let hash ~time ?(message = "") context =
   let info =
-    Irmin.Info.v ~date:(Time.Protocol.to_seconds time) ~author:"Tezos" message
+    Store.Info.v (Time.Protocol.to_seconds time) ~author:"Tezos" ~message
   in
-  let parents = List.map (fun c -> Store.Commit.hash c) context.parents in
-  let node = Store.Tree.hash context.tree in
-  let commit = Store.Private.Commit.Val.v ~parents ~node ~info in
-  let x = Store.Private.Commit.Key.hash commit in
+  let parents = List.map (fun c -> Store.Commit.key c) context.parents in
+  let node = kinded_key_to_key context.tree in
+  let commit = Store.Backend.Commit.Val.v ~parents ~node ~info in
+  let x = Store.Backend.Commit.Hash.hash commit in
   Hash.to_context_hash x
 
 let commit ~time ?message context =
@@ -175,7 +185,7 @@ let create () =
   let cfg = Irmin_pack.config "/tmp" in
   let promise =
     Store.Repo.v cfg >>= fun repo ->
-    Lwt.return {repo; parents = []; tree = Store.Tree.empty}
+    Lwt.return {repo; parents = []; tree = Store.Tree.empty ()}
   in
   match Lwt.state promise with
   | Lwt.Return result -> result
