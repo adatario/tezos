@@ -493,9 +493,13 @@ let add_predecessor_ops_metadata_hash v hash =
 
 (*-- Initialisation ----------------------------------------------------------*)
 
-let init ?patch_context ?(readonly = false) root =
+let init ?patch_context ?(readonly = false) ?(indexing_strategy = `Minimal) root
+    =
   let index_log_size = Option.value ~default:2_500_000 !index_log_size in
-  let indexing_strategy = Irmin_pack.Pack_store.Indexing_strategy.minimal in
+  let indexing_strategy =
+    let module I = Irmin_pack.Pack_store.Indexing_strategy in
+    match indexing_strategy with `Minimal -> I.minimal | `Always -> I.always
+  in
   Store.Repo.v
     (Irmin_pack.config ~readonly ~index_log_size ~indexing_strategy root)
   >|= fun repo -> {path = root; repo; patch_context; readonly}

@@ -3242,7 +3242,11 @@ module Make_snapshot_importer (Importer : IMPORTER) : Snapshot_importer = struct
       snapshot_path
       user_expected_block
     >>= fun () ->
-    Context.init ~readonly:false ?patch_context dst_context_dir
+    Context.init
+      ~readonly:false
+      ~indexing_strategy:`Always
+      ?patch_context
+      dst_context_dir
     >>= fun context_index ->
     (* Restore context *)
     restore_and_apply_context
