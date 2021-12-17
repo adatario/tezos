@@ -60,7 +60,6 @@ module Merkle = struct
   let rec merkle_node_to_irmin_tree repo mnode :
       (Store.tree, string) result Lwt.t =
     let open Tezos_shell_services.Block_services in
-    let open Lwt_result_syntax in
     match mnode with
     | Hash (kind, s) -> (
         match string_to_hash s with
@@ -71,8 +70,8 @@ module Merkle = struct
               | Contents -> `Contents hash_str
               | Node -> `Node hash_str
             in
-            return @@ Store.Tree.shallow repo irmin_hash)
-    | Data raw_context -> lwt_ok @@ raw_context_to_irmin_tree raw_context
+            Lwt_result.ok @@ Store.Tree.shallow repo irmin_hash)
+    | Data raw_context -> Lwt_result.ok @@ raw_context_to_irmin_tree raw_context
     | Continue subtree -> merkle_tree_to_irmin_tree repo subtree
 
   and merkle_tree_to_irmin_tree repo mtree : (Store.tree, string) result Lwt.t =
