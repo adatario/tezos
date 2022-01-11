@@ -754,7 +754,7 @@ module Dumpable_context = struct
       | None -> Lwt.return_some (Store.Tree.empty ())
       | Some sub_tree -> add_hash batch sub_tree [step] hash
     in
-    Seq_es.fold_left_s add (Some (Store.Tree.empty ()) ) l >>=? function
+    Seq_es.fold_left_s add (Some (Store.Tree.empty ())) l >>=? function
     | None -> Lwt.return_ok None
     | Some tree ->
         let (Batch (repo, x, y)) = batch in
