@@ -418,78 +418,104 @@ let merkle_tree t leaf_kind key =
 
 (*-- Predefined Fields -------------------------------------------------------*)
 
-let get_protocol v =
-  raw_find v current_protocol_key >|= function
-  | None -> assert false
-  | Some data -> Protocol_hash.of_bytes_exn data
+module Root_tree = struct
+  let get_protocol t =
+    Tree.find t current_protocol_key >|= function
+    | None -> assert false
+    | Some data -> Protocol_hash.of_bytes_exn data
 
-let add_protocol v key =
-  let key = Protocol_hash.to_bytes key in
-  raw_add v current_protocol_key key
+  let add_protocol t v =
+    let v = Protocol_hash.to_bytes v in
+    Tree.add t current_protocol_key v
 
-let get_test_chain v =
-  raw_find v current_test_chain_key >>= function
-  | None -> Lwt.fail (Failure "Unexpected error (Context.get_test_chain)")
-  | Some data -> (
-      match Data_encoding.Binary.of_bytes Test_chain_status.encoding data with
-      | Error re ->
-          Format.kasprintf
-            (fun s -> Lwt.fail (Failure s))
-            "Error in Context.get_test_chain: %a"
-            Data_encoding.Binary.pp_read_error
-            re
-      | Ok r -> Lwt.return r)
+  let get_test_chain t =
+    Tree.find t current_test_chain_key >>= function
+    | None -> Lwt.fail (Failure "Unexpected error (Context.get_test_chain)")
+    | Some data -> (
+        match Data_encoding.Binary.of_bytes Test_chain_status.encoding data with
+        | Error re ->
+            Format.kasprintf
+              (fun s -> Lwt.fail (Failure s))
+              "Error in Context.get_test_chain: %a"
+              Data_encoding.Binary.pp_read_error
+              re
+        | Ok r -> Lwt.return r)
 
-let add_test_chain v id =
-  let id = Data_encoding.Binary.to_bytes_exn Test_chain_status.encoding id in
-  raw_add v current_test_chain_key id
+  let add_test_chain t id =
+    let id = Data_encoding.Binary.to_bytes_exn Test_chain_status.encoding id in
+    Tree.add t current_test_chain_key id
+
+  let find_predecessor_block_metadata_hash t =
+    Tree.find t current_predecessor_block_metadata_hash_key >>= function
+    | None -> Lwt.return_none
+    | Some data -> (
+        match
+          Data_encoding.Binary.of_bytes_opt Block_metadata_hash.encoding data
+        with
+        | None ->
+            Lwt.fail
+              (Failure
+                 "Unexpected error \
+                  (Context.get_predecessor_block_metadata_hash)")
+        | Some r -> Lwt.return_some r)
+
+  let add_predecessor_block_metadata_hash t hash =
+    let data =
+      Data_encoding.Binary.to_bytes_exn Block_metadata_hash.encoding hash
+    in
+    Tree.add t current_predecessor_block_metadata_hash_key data
+
+  let find_predecessor_ops_metadata_hash t =
+    Tree.find t current_predecessor_ops_metadata_hash_key >>= function
+    | None -> Lwt.return_none
+    | Some data -> (
+        match
+          Data_encoding.Binary.of_bytes_opt
+            Operation_metadata_list_list_hash.encoding
+            data
+        with
+        | None ->
+            Lwt.fail
+              (Failure
+                 "Unexpected error (Context.get_predecessor_ops_metadata_hash)")
+        | Some r -> Lwt.return_some r)
+
+  let add_predecessor_ops_metadata_hash t hash =
+    let data =
+      Data_encoding.Binary.to_bytes_exn
+        Operation_metadata_list_list_hash.encoding
+        hash
+    in
+    Tree.add t current_predecessor_ops_metadata_hash_key data
+end
+
+let get_protocol ctxt = Root_tree.get_protocol ctxt.tree
+
+let get_test_chain ctxt = Root_tree.get_test_chain ctxt.tree
+
+let find_predecessor_block_metadata_hash ctxt =
+  Root_tree.find_predecessor_block_metadata_hash ctxt.tree
+
+let find_predecessor_ops_metadata_hash ctxt =
+  Root_tree.find_predecessor_ops_metadata_hash ctxt.tree
+
+let lift_tree_add_to_ctxt tree_add ctxt v =
+  tree_add ctxt.tree v >|= fun tree -> incr_ops {ctxt with tree}
+
+let add_protocol = lift_tree_add_to_ctxt Root_tree.add_protocol
+
+let add_test_chain = lift_tree_add_to_ctxt Root_tree.add_test_chain
+
+let add_predecessor_block_metadata_hash =
+  lift_tree_add_to_ctxt Root_tree.add_predecessor_block_metadata_hash
+
+let add_predecessor_ops_metadata_hash =
+  lift_tree_add_to_ctxt Root_tree.add_predecessor_ops_metadata_hash
 
 let remove_test_chain v = raw_remove v current_test_chain_key
 
 let fork_test_chain v ~protocol ~expiration =
   add_test_chain v (Forking {protocol; expiration})
-
-let find_predecessor_block_metadata_hash v =
-  raw_find v current_predecessor_block_metadata_hash_key >>= function
-  | None -> Lwt.return_none
-  | Some data -> (
-      match
-        Data_encoding.Binary.of_bytes_opt Block_metadata_hash.encoding data
-      with
-      | None ->
-          Lwt.fail
-            (Failure
-               "Unexpected error (Context.get_predecessor_block_metadata_hash)")
-      | Some r -> Lwt.return_some r)
-
-let add_predecessor_block_metadata_hash v hash =
-  let data =
-    Data_encoding.Binary.to_bytes_exn Block_metadata_hash.encoding hash
-  in
-  raw_add v current_predecessor_block_metadata_hash_key data
-
-let find_predecessor_ops_metadata_hash v =
-  raw_find v current_predecessor_ops_metadata_hash_key >>= function
-  | None -> Lwt.return_none
-  | Some data -> (
-      match
-        Data_encoding.Binary.of_bytes_opt
-          Operation_metadata_list_list_hash.encoding
-          data
-      with
-      | None ->
-          Lwt.fail
-            (Failure
-               "Unexpected error (Context.get_predecessor_ops_metadata_hash)")
-      | Some r -> Lwt.return_some r)
-
-let add_predecessor_ops_metadata_hash v hash =
-  let data =
-    Data_encoding.Binary.to_bytes_exn
-      Operation_metadata_list_list_hash.encoding
-      hash
-  in
-  raw_add v current_predecessor_ops_metadata_hash_key data
 
 (*-- Initialisation ----------------------------------------------------------*)
 
@@ -797,12 +823,7 @@ let retrieve_commit_info index block_header =
       predecessor_ops_metadata_hash,
       parents_contexts )
 
-let shallow repo kinded_hash =
-  Store.Tree.of_hash repo kinded_hash >>= function
-  | None -> Lwt.fail_with "convert hash to tree failed"
-  | Some tree -> Lwt.return tree
-
-let check_protocol_commit_consistency index ~expected_context_hash
+let check_protocol_commit_consistency ~expected_context_hash
     ~given_protocol_hash ~author ~message ~timestamp ~test_chain_status
     ~predecessor_block_metadata_hash ~predecessor_ops_metadata_hash
     ~data_merkle_root ~parents_contexts =
@@ -841,48 +862,37 @@ let check_protocol_commit_consistency index ~expected_context_hash
   | None -> Lwt.return tree)
   >>= fun tree ->
   let info = Info.v ~author (Time.Protocol.to_seconds timestamp) ~message in
-  shallow index.repo (`Node data_merkle_root) >>= fun data_tree ->
+  let data_tree = Store.Tree.pruned (`Node data_merkle_root) in
   Store.Tree.add_tree tree current_data_key data_tree >>= fun node ->
   let node = Store.Tree.hash node in
   let commit_hash =
     P.Commit_portable.v ~parents ~node ~info |> Commit_hash.hash
   in
-  Store.Commit.of_hash index.repo commit_hash >>= function
-  | None -> Lwt.return_false
-  | Some c ->
-      let commit_key = Store.Commit.key c in
-      let commit_val = Store.to_backend_commit c in
-      let computed_context_hash = Hash.to_context_hash commit_hash in
-      if Context_hash.equal expected_context_hash computed_context_hash then
-        let ctxt =
-          let parent =
-            Store.of_backend_commit index.repo commit_key commit_val
-          in
-          let tree = Store.Tree.empty () in
-          {index; tree; parents = [parent]; ops = 0}
-        in
-        add_test_chain ctxt test_chain_status >>= fun ctxt ->
-        add_protocol ctxt given_protocol_hash >>= fun ctxt ->
-        (match predecessor_block_metadata_hash with
-        | Some predecessor_block_metadata_hash ->
-            add_predecessor_block_metadata_hash
-              ctxt
-              predecessor_block_metadata_hash
-        | None -> Lwt.return ctxt)
-        >>= fun ctxt ->
-        (match predecessor_ops_metadata_hash with
-        | Some predecessor_ops_metadata_hash ->
-            add_predecessor_ops_metadata_hash ctxt predecessor_ops_metadata_hash
-        | None -> Lwt.return ctxt)
-        >>= fun ctxt ->
-        shallow index.repo (`Node data_merkle_root) >>= fun data_t ->
-        Store.Tree.add_tree ctxt.tree current_data_key data_t
-        >>= fun new_tree ->
-        let parents = List.map Irmin_pack.Pack_key.v_indexed parents in
-        Store.Commit.v ctxt.index.repo ~info ~parents new_tree >|= fun commit ->
-        let ctxt_h = Hash.to_context_hash (Store.Commit.hash commit) in
-        Context_hash.equal ctxt_h expected_context_hash
-      else Lwt.return_false
+  let computed_context_hash = Hash.to_context_hash commit_hash in
+  if not (Context_hash.equal expected_context_hash computed_context_hash) then
+    Lwt.return_false
+  else
+    let tree = Store.Tree.empty () in
+    Root_tree.add_test_chain tree test_chain_status >>= fun tree ->
+    Root_tree.add_protocol tree given_protocol_hash >>= fun tree ->
+    Option.fold
+      predecessor_block_metadata_hash
+      ~none:(Lwt.return tree)
+      ~some:(Root_tree.add_predecessor_block_metadata_hash tree)
+    >>= fun tree ->
+    Option.fold
+      predecessor_ops_metadata_hash
+      ~none:(Lwt.return tree)
+      ~some:(Root_tree.add_predecessor_ops_metadata_hash tree)
+    >>= fun tree ->
+    let data_t = Store.Tree.pruned (`Node data_merkle_root) in
+    Store.Tree.add_tree tree current_data_key data_t >|= fun new_tree ->
+    let node = Store.Tree.hash new_tree in
+    let ctxt_h =
+      P.Commit_portable.v ~info ~parents ~node
+      |> Commit_hash.hash |> Hash.to_context_hash
+    in
+    Context_hash.equal ctxt_h expected_context_hash
 
 (* Context dumper *)
 

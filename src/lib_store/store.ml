@@ -2718,7 +2718,7 @@ module Unsafe = struct
         may_unlock lockfile >>= fun () -> Lwt.return (Error errs))
 
   let restore_from_snapshot ?(notify = fun () -> Lwt.return_unit) store_dir
-      ~context_index ~genesis ~genesis_context_hash ~floating_blocks_stream
+      ~genesis ~genesis_context_hash ~floating_blocks_stream
       ~new_head_with_metadata ~protocol_levels ~history_mode =
     let chain_id = Chain_id.of_block_hash genesis.Genesis.block in
     let chain_dir = Naming.chain_dir store_dir chain_id in
@@ -2823,7 +2823,6 @@ module Unsafe = struct
         | (Some _block, None) -> return_unit
         | (Some block, Some commit_info) ->
             Context.check_protocol_commit_consistency
-              context_index
               ~expected_context_hash:(Block.context_hash block)
               ~given_protocol_hash:protocol
               ~author:commit_info.author
