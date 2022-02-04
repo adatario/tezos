@@ -63,7 +63,7 @@ module type VIEW = sig
   val list :
     t -> ?offset:int -> ?length:int -> key -> (string * tree) list Lwt.t
 
-  (** [length t key] is an Lwt promise that resolve to the number of
+  (** [length t key] is an Lwt promise that resolves to the number of
       files and sub-nodes stored under [k] in [t].
 
       It is equivalent to [list t k >|= List.length] but has a
@@ -193,14 +193,8 @@ module Proof_types = struct
   (** The type for values. *)
   type value = bytes
 
-  (** The type of children indexers in inodes.
-
-      In L1 context, an inode has at most 32 children (indexed from 0 to 31).
-
-      In L2 context, an inode has at most 2 children (indexed 0 or 1). In that
-      case, this boolean index is a side of the left-right decision proof
-      corresponding to the path in that binary tree. *)
-  type side = int
+  (** The type of indices for inodes' children. *)
+  type index = int
 
   (** The type for hashes. *)
   type hash = Context_hash.t
@@ -209,29 +203,34 @@ module Proof_types = struct
 
       These proofs encode large directories into a tree-like structure. This
       reflects irmin-pack's way of representing nodes and computing
-      hashes (tree-like representions for nodes scales better than flat
+      hashes (tree-like representations for nodes scales better than flat
       representations).
 
-      [length] is the total number of entries in the chidren of the inode.
-      It's the size of the "flattened" version of that inode. This information
-      must be contained in the proof because it part of the context hash.
-      irmin-pack requires storing the length at every inode in order to support
-      pagination (see the [list] function).
+      [length] is the total number of entries in the children of the inode.
+      It's the size of the "flattened" version of that inode. Inodes must contain
+      this information because it is required to compute the context hash.
+      The context use that lenght field to efficiently implement
+      [Tree.length] and [Tree.list ~offset ~length].
 
-      [proofs] contains the children proofs. It is an assoc list where the first
-      element of the pair is the index (i.e. the [side]) of the child in the
-      inode. This list is ordered by [side] and some entries may miss if the
-      inode doesn't possess some children. *)
-  type 'a inode = {length : int; proofs : (side * 'a) list}
+      [proofs] contains the children proofs. It is a sparse list of ['a] values.
+      These values are associated to their index in the list, and the list is
+      kept sorted in increasing order of indices. ['a] can be a concrete proof
+      or a hash of that proof.
+      - In L1 contexts, inodes have at most 32 proofs (indexed from 0 to 31).
+      - In L2 contexts, inodes have at most 2 proofs (indexed 0 or 1). *)
+  type 'a inode = {length : int; proofs : (index * 'a) list}
 
   (** The type for inode extenders.
 
-      And extender is a compact representation of a series of [inode] which
+      And extender is a compact representation of a sequence of [inode] which
       contain only one child.
 
-      [proof] is the sub-proof of the bottom-most child of the original series
-      of [inodes]. *)
-  type 'a inode_extender = {length : int; segment : side list; proof : 'a}
+      The inode containing singleton children [i_0, ..., i_n]:
+      [{length=l; proofs = [ (i_0, {proofs = ... { proofs = [ (i_n, p) ] }})]}]
+      is compressed into the inode extender
+      [{length=l; segment = [i_0;..;i_n]; proof=p}] sharing the same lenght [l]
+      and final proof [p]. *)
+  type 'a inode_extender = {length : int; segment : index list; proof : 'a}
   [@@deriving irmin]
 
   (** The type for inode trees.
