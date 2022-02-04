@@ -67,7 +67,7 @@ module type VIEW = sig
   val list :
     t -> ?offset:int -> ?length:int -> key -> (string * tree) list Lwt.t
 
-  (** [length t key] is an Lwt promise that resolve to the number of
+  (** [length t key] is an Lwt promise that resolves to the number of
       files and sub-nodes stored under [k] in [t].
 
       It is equivalent to [list t k >|= List.length] but has a
@@ -97,12 +97,10 @@ module type VIEW = sig
 
   (** {2 Folding} *)
 
-  (** [fold ?depth t root ~init ~f] recursively folds over the trees
+  (** [fold ?depth t root ~order ~init ~f] recursively folds over the trees
       and values of [t]. The [f] callbacks are called with a key relative
       to [root]. [f] is never called with an empty key for values; i.e.,
       folding over a value is a no-op.
-
-      Elements are traversed in lexical order of keys.
 
       The depth is 0-indexed. If [depth] is set (by default it is not), then [f]
       is only called when the conditions described by the parameter is true:
@@ -114,7 +112,7 @@ module type VIEW = sig
       - [Ge d] folds over nodes and values of depth more than or equal to [d].
 
       If [order] is [`Sorted] (the default), the elements are traversed in
-      lexicographic order of their keys. For large nodes, these two modes are memory-consuming,
+      lexicographic order of their keys. For large nodes, it is memory-consuming,
       use [`Undefined] for a more memory efficient [fold]. *)
   val fold :
     ?depth:depth ->
@@ -151,43 +149,45 @@ module Proof : sig
   (** The type for values. *)
   type value = bytes
 
-  (** The type of children indexers in inodes. *)
-  type side = int
+  (** The type of indices for inodes' children. *)
+  type index = int
 
   (** The type for hashes. *)
   type hash = Context_hash.t
 
   (** The type for (internal) inode proofs.
 
-      These proofs encode large directories into a more efficient tree-like
-      structure.
+      These proofs encode large directories into a tree-like structure. This
+      reflects irmin-pack's way of representing nodes and computing
+      hashes (tree-like representations for nodes scales better than flat
+      representations).
 
-      [length] is the total number of entries in the chidren of the inode.
-      It's the size of the "flattened" version of that inode. This is used
-      to efficiently implement paginated lists.
+      [length] is the total number of entries in the children of the inode.
+      It's the size of the "flattened" version of that inode. [length] can be
+      used to prove the correctness of operations such [Tree.length] and
+      [Tree.list ~offset ~length] in an efficient way.
 
-      [proofs] have a length of at most 32 entries (or 2 in case of binary
-      trees). This list can be sparse so every proof is indexed by their
-      position between [0 ... (32 - 1)]. For binary trees, this boolean index is
-      a side of the left-right decision proof corresponding to the path in that
-      binary tree. *)
-  type 'a inode = {length : int; proofs : (side * 'a) list}
+      [proofs] contains the children proofs. It is a sparse list of ['a] values.
+      These values are associated to their index in the list, and the list is
+      kept sorted in increasing order of indices. ['a] can be a concrete proof
+      or a hash of that proof.
+      - In L1 contexts, inodes have at most 32 proofs (indexed from 0 to 31).
+      - In L2 contexts, inodes have at most 2 proofs (indexed 0 or 1). *)
+  type 'a inode = {length : int; proofs : (index * 'a) list}
 
-  (** The type for inode extenders. *)
-  type 'a inode_extender = {length : int; segment : side list; proof : 'a}
+  (** The type for inode extenders.
+
+      And extender is a compact representation of a sequence of [inode] which
+      contain only one child. As for inodes, The ['a] parameter can be a
+      concrete proof or a hash of that proof.
+
+      If an inode proof contains singleton children [i_0, ..., i_n] such as:
+      [{length=l; proofs = [ (i_0, {proofs = ... { proofs = [ (i_n, p) ] }})]}],
+      then it is compressed into the inode extender
+      [{length=l; segment = [i_0;..;i_n]; proof=p}] sharing the same lenght [l]
+      and final proof [p]. *)
+  type 'a inode_extender = {length : int; segment : index list; proof : 'a}
   [@@deriving irmin]
-
-  (** The type for inode trees.
-
-      Inodes are optimized representations of trees. Pointers in that trees
-      would refer to blinded nodes, nodes or to other inodes.
-      Neither blinded values nor values are not expected to appear directly in
-      an inode tree. *)
-  type inode_tree =
-    | Blinded_inode of hash
-    | Inode_values of (step * tree) list
-    | Inode_tree of inode_tree inode
-    | Inode_extender of inode_tree inode_extender
 
   (** The type for compressed and partial Merkle tree proofs.
 
@@ -195,17 +195,21 @@ module Proof : sig
       computations. For instance, if two effects commute, they won't be
       distinguishable by this kind of proofs.
 
-      [Blinded_value h] is a shallow pointer to a value with hash [h].
-      [Value v] is the value [v].
+      [Value v] proves that a value [v] exists in the store.
 
-      [Blinded_node h] is a shallow pointer to a node having hash [h].
+      [Blinded_value h] proves a value with hash [h] exists in the store.
 
-      [Node ls] is a "flat" node containing the list of files [ls]. The length
-      of [ls] is at most 256 (or 2 in the case of binary trees).
+      [Node ls] proves that a a "flat" node containing the list of files [ls]
+      exists in the store.
+      - For L1 contexts, the length of [ls] is at most 256;
+      - For L2 contexts, the length of [ls] is at most 2.
 
-      [Inode i] is an optimized representation of a node as a tree.
-      [Extender i] is an inode extender when such optimisation is possible. *)
-  and tree =
+      [Blinded_node h] proves that a node with hash [h] exists in the store.
+
+      [Inode i] proves that an inode [i] exists in the store.
+
+      [Extender e] proves that an inode extender [e] exist in the store. *)
+  type tree =
     | Value of value
     | Blinded_value of hash
     | Node of (step * tree) list
@@ -213,20 +217,67 @@ module Proof : sig
     | Inode of inode_tree inode
     | Extender of inode_tree inode_extender
 
+  (** The type for inode trees. It is a subset of [tree], limited to nodes.
+
+      [Blinded_inode h] proves that an inode with hash [h] exists in the store.
+
+      [Inode_values ls] is simliar to trees' [Node].
+
+      [Inode_tree i] is similar to tree's [Inode].
+
+      [Inode_extender e] is similar to trees' [Extender].  *)
+  and inode_tree =
+    | Blinded_inode of hash
+    | Inode_values of (step * tree) list
+    | Inode_tree of inode_tree inode
+    | Inode_extender of inode_tree inode_extender
+
   (** The type for kinded hashes. *)
   type kinded_hash = [`Value of hash | `Node of hash]
 
   module Stream : sig
-    (** The type for elements of stream proofs. *)
+    (** Stream proofs represent an explicit traversal of a Merle tree proof.
+        Every element (a node, a value, or a shallow pointer) met is first
+        "compressed" by shallowing its children and then recorded in the proof.
+
+        As stream proofs directly encode the recursive construction of the
+        Merkle root hash is slightly simpler to implement: verifier simply
+        need to hash the compressed elements lazily, without any memory or
+        choice.
+
+        Moreover, the minimality of stream proofs is trivial to check.
+        Once the computation has consumed the compressed elements required,
+        it is sufficient to check that no more compressed elements remain
+        in the proof.
+
+        However, as the compressed elements contain all the hashes of their
+        shallow children, the size of stream proofs is larger
+        (at least double in size in practice) than tree proofs, which only
+        contains the hash for intermediate shallow pointers. *)
+
+    (** The type for elements of stream proofs.
+
+        [Value v] is a proof that the next element read in the store is the
+        value [v].
+
+        [Node n] is a proof that the next element read in the store is the
+        node [n].
+
+        [Inode i] is a proof that the next element read in the store is the
+        inode [i].
+
+        [Inode_extender e] is a proof that the next element read in the store
+        is the node extender [e]. *)
     type elt =
       | Value of value
       | Node of (step * kinded_hash) list
       | Inode of hash inode
       | Inode_extender of hash inode_extender
 
-    (** The type for stream proofs. Stream poofs provides stronger ordering
-      guarantees as the read effects have to happen in the exact same order and
-      they are easier to verify. *)
+    (** The type for stream proofs.
+
+        The sequance [e_1 ... e_n] proves that the [e_1], ..., [e_n] are
+        read in the store in sequence. *)
     type t = elt Seq.t
   end
 
