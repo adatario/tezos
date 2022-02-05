@@ -443,14 +443,21 @@ module type S = sig
     (tree -> (tree * 'result) Lwt.t) ->
     ('proof * 'result) Lwt.t
 
-  (** [verify t f] runs [f] in checking mode, loading data from the proof as
+  (** [verify p f] runs [f] in checking mode, loading data from the proof [p] as
       needed.
 
       The generated tree is the tree after [f] has completed. More operations
       can be run on that tree, but it won't be able to access the underlying
       storage.
 
-      Raise [Proof.Bad_proof] when the proof is rejected. *)
+      The result is [Error _] if the proof is rejected:
+      - For tree proofs: when [p.before] is different from the hash of
+        [p.state];
+      - For tree and stream proofs: when [p.after] is different from the hash
+        of [f p.state];
+      - For tree and stream proofs: when [f p.state] tries to access paths
+        invalid paths in [p.state];
+      - For stream proofs: when the proof is not empty once [f] is done. *)
   type ('proof, 'result) verifier :=
     'proof ->
     (tree -> (tree * 'result) Lwt.t) ->
