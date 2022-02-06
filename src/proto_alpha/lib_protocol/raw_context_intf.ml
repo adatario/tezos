@@ -245,7 +245,7 @@ module type PROOF = sig
   type value = bytes
 
   (** The type of children indexers in inodes. *)
-  type side = int
+  type index = int
 
   (** The type for hashes. *)
   type hash = Context_hash.t
@@ -264,10 +264,10 @@ module type PROOF = sig
       position between [0 ... (32 - 1)]. For binary trees, this boolean index is
       a side of the left-right decision proof corresponding to the path in that
       binary tree. *)
-  type 'a inode = {length : int; proofs : (side * 'a) list}
+  type 'a inode = {length : int; proofs : (index * 'a) list}
 
   (** The type for inode extenders. *)
-  type 'a inode_extender = {length : int; segment : side list; proof : 'a}
+  type 'a inode_extender = {length : int; segment : index list; proof : 'a}
   [@@deriving irmin]
 
   (** The type for inode trees.
