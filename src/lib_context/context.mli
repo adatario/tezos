@@ -26,13 +26,14 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Tezos - Versioned, block indexed (key x value) store *)
-
 type error +=
   | Cannot_create_file of string
   | Cannot_open_file of string
   | Cannot_find_protocol
   | Suspicious_file of int
+
+(** Tezos - Versioned, block indexed (key x value) store *)
+module Make (Encoding : module type of Tezos_context_encoding.Context) : sig
 
 (** {2 Generic interface} *)
 
@@ -196,4 +197,5 @@ module Checks : sig
   module Pack : Irmin_pack.Checks.S
 
   module Index : Index.Checks.S
+end
 end

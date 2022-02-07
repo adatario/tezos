@@ -28,7 +28,6 @@
 (*****************************************************************************)
 
 (* Errors *)
-
 type error +=
   | Cannot_create_file of string
   | Cannot_open_file of string
@@ -85,10 +84,6 @@ let () =
     (function Suspicious_file e -> Some e | _ -> None)
     (fun e -> Suspicious_file e)
 
-(** Tezos - Versioned (key x value) store (over Irmin) *)
-
-open Tezos_context_encoding.Context
-
 let reporter () =
   let report src level ~over k msgf =
     let k _ =
@@ -111,6 +106,31 @@ let reporter () =
   in
   {Logs.report}
 
+let () =
+  let verbose_info () =
+    Logs.set_level (Some Logs.Info) ;
+    Logs.set_reporter (reporter ())
+  in
+  let verbose_debug () =
+    Logs.set_level (Some Logs.Debug) ;
+    Logs.set_reporter (reporter ())
+  in
+  match Unix.getenv "TEZOS_CONTEXT" with
+  | exception Not_found -> ()
+  | v ->
+      let args = String.split ',' v in
+      List.iter
+        (function
+          | "v" | "verbose" -> verbose_info ()
+          | "vv" -> verbose_debug ()
+          | _ -> ())
+        args
+
+module Make (Encoding : module type of Tezos_context_encoding.Context) = struct
+open Encoding
+
+(** Tezos - Versioned (key x value) store (over Irmin) *)
+
 let index_log_size = ref None
 
 let auto_flush = ref 10_000
@@ -121,14 +141,6 @@ let auto_flush = ref 10_000
    will have to be garbage collected later on to save space. *)
 
 let () =
-  let verbose_info () =
-    Logs.set_level (Some Logs.Info) ;
-    Logs.set_reporter (reporter ())
-  in
-  let verbose_debug () =
-    Logs.set_level (Some Logs.Debug) ;
-    Logs.set_reporter (reporter ())
-  in
   let index_log_size n = index_log_size := Some (int_of_string n) in
   let auto_flush n = auto_flush := int_of_string n in
   match Unix.getenv "TEZOS_CONTEXT" with
@@ -136,14 +148,11 @@ let () =
   | v ->
       let args = String.split ',' v in
       List.iter
-        (function
-          | "v" | "verbose" -> verbose_info ()
-          | "vv" -> verbose_debug ()
-          | v -> (
+        (fun v ->
               match String.split '=' v with
               | ["index-log-size"; n] -> index_log_size n
               | ["auto-flush"; n] -> auto_flush n
-              | _ -> ()))
+              | _ -> ())
         args
 
 module Store =
@@ -876,3 +885,4 @@ let restore_context idx ~expected_context_hash ~nb_context_elements ~fd =
     ~expected_context_hash
     ~fd
     ~nb_context_elements
+end
