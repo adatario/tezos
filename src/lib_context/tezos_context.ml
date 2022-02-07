@@ -33,6 +33,16 @@ module Context_v0 = struct
   include Context.Make (Tezos_context_encoding.Context)
 end
 
+module Context_v1 = struct
+  type error +=
+    | Cannot_create_file = Context.Cannot_create_file
+    | Cannot_open_file = Context.Cannot_open_file
+    | Cannot_find_protocol = Context.Cannot_find_protocol
+    | Suspicious_file = Context.Suspicious_file
+
+  include Context.Make (Tezos_context_encoding.Context_v1)
+end
+
 module Context_dump = Context_dump
 
 module Internal_for_tests = struct
