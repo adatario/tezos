@@ -171,8 +171,8 @@ module Proof : sig
       These values are associated to their index in the list, and the list is
       kept sorted in increasing order of indices. ['a] can be a concrete proof
       or a hash of that proof.
-      - In L1 contexts, inodes have at most 32 proofs (indexed from 0 to 31).
-      - In L2 contexts, inodes have at most 2 proofs (indexed 0 or 1). *)
+      - In proofs with version 0, inodes have at most 32 proofs
+        (indexed from 0 to 31). *)
   type 'a inode = {length : int; proofs : (index * 'a) list}
 
   (** The type for inode extenders.
@@ -201,8 +201,7 @@ module Proof : sig
 
       [Node ls] proves that a a "flat" node containing the list of files [ls]
       exists in the store.
-      - For L1 contexts, the length of [ls] is at most 256;
-      - For L2 contexts, the length of [ls] is at most 2.
+      - In proofs with version 0, the length of [ls] is at most 256;
 
       [Blinded_node h] proves that a node with hash [h] exists in the store.
 
@@ -288,9 +287,11 @@ module Proof : sig
        A proof [p] proves that the state advanced from [before p] to
        [after p]. [state p]'s hash is [before p], and [state p] contains
        the minimal information for the computation to reach [after p].
-       [version p] is the proof version, currently unused (it will be used to
-       distinguish between the proofs using binary trees and the ones with the
-       branching factor 32). *)
+
+       [version p] is the proof version, currently only version 0 is supported.
+       - Proofs with version 0 have top-level nodes of size 256. Whenever a node
+         has more than 256 entries, it is converted into an inode tree with
+         an branching factor of 32. *)
   type 'a t = {
     version : int;
     before : kinded_hash;
