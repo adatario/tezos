@@ -150,7 +150,7 @@ module Internal_validator_process = struct
        of caches passed from one block to the next one here.
     *)
     mutable cache : Environment_context.Context.block_cache option;
-    mutable preapply_result : (Block_validation.apply_result * Context.t) option;
+    mutable preapply_result : (Block_validation.apply_result * Context_v0.t) option;
   }
 
   let init
@@ -178,7 +178,7 @@ module Internal_validator_process = struct
     let predecessor_block_header = Store.Block.header predecessor in
     let context_hash = predecessor_block_header.shell.context in
     let context_index = get_context_index chain_store in
-    (Context.checkout context_index context_hash >>= function
+    (Context_v0.checkout context_index context_hash >>= function
      | None ->
          fail (Block_validator_errors.Failed_to_checkout_context context_hash)
      | Some ctx -> return ctx)
@@ -238,7 +238,7 @@ module Internal_validator_process = struct
       Store.context_index (Store.Chain.global_store validator.chain_store)
     in
     let context_hash = predecessor_shell_header.Block_header.context in
-    (Context.checkout context_index context_hash >>= function
+    (Context_v0.checkout context_index context_hash >>= function
      | None ->
          fail (Block_validator_errors.Failed_to_checkout_context context_hash)
      | Some ctx -> return ctx)
@@ -274,7 +274,7 @@ module Internal_validator_process = struct
     in
     let predecessor_block_header = Store.Block.header predecessor in
     let context_hash = predecessor_block_header.Block_header.shell.context in
-    (Context.checkout context_index context_hash >>= function
+    (Context_v0.checkout context_index context_hash >>= function
      | None ->
          fail (Block_validator_errors.Failed_to_checkout_context context_hash)
      | Some ctx -> return ctx)
@@ -298,7 +298,7 @@ module Internal_validator_process = struct
   let commit_genesis validator ~chain_id =
     let context_index = get_context_index validator.chain_store in
     let genesis = Store.Chain.genesis validator.chain_store in
-    Context.commit_genesis
+    Context_v0.commit_genesis
       context_index
       ~chain_id
       ~time:genesis.time

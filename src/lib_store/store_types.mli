@@ -79,9 +79,9 @@ module Protocol_levels : sig
         parents.
 
       This structure should be populated with the result of
-      {!Tezos_context.Context.retrieve_commit_info}. The consistency
+      {!Tezos_context.Context_v0.retrieve_commit_info}. The consistency
       check is done by
-      {!Tezos_context.Context.check_protocol_commit_consistency} when
+      {!Tezos_context.Context_v0.check_protocol_commit_consistency} when
       a context in imported in the leger state, for example, when
       importing a snapshot. *)
   type commit_info = {

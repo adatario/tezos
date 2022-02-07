@@ -65,7 +65,7 @@ type incremental = {
 
 let load_context ~context_path =
   protect (fun () ->
-      Context.init ~readonly:true context_path >>= fun index ->
+      Context_v0.init ~readonly:true context_path >>= fun index ->
       return (Abstract_context_index.abstract index))
 
 let check_context_consistency (abstract_index : Abstract_context_index.t)

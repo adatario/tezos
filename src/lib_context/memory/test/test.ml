@@ -25,7 +25,7 @@
 
 (* shell context *)
 module C = struct
-  include Tezos_context.Context
+  include Tezos_context.Context_v0
 
   (** Basic blocks *)
 

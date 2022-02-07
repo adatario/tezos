@@ -83,7 +83,7 @@ let build_rpc_directory validator mainchain_validator =
             | None -> Lwt.return_false (* won't happen *)
             | Some pred ->
                 Store.Block.context_exn chain_store pred >>= fun context ->
-                Context.get_protocol context >>= fun protocol ->
+                Context_v0.get_protocol context >>= fun protocol ->
                 Lwt.return
                   (List.exists (Protocol_hash.equal protocol) protocols))
       in
@@ -92,7 +92,7 @@ let build_rpc_directory validator mainchain_validator =
         | [] -> Lwt.return_true
         | protocols ->
             Store.Block.context_exn chain_store block >>= fun context ->
-            Context.get_protocol context >>= fun next_protocol ->
+            Context_v0.get_protocol context >>= fun next_protocol ->
             Lwt.return
               (List.exists (Protocol_hash.equal next_protocol) protocols)
       in
@@ -128,7 +128,7 @@ let build_rpc_directory validator mainchain_validator =
             | [] -> Lwt.return_true
             | protocols ->
                 Store.Block.context_exn chain_store block >>= fun context ->
-                Context.get_protocol context >>= fun next_protocol ->
+                Context_v0.get_protocol context >>= fun next_protocol ->
                 Lwt.return
                   (List.exists (Protocol_hash.equal next_protocol) protocols)
           in

@@ -293,7 +293,7 @@ module Context_size_dependent_read_bench : Benchmark.S = struct
       let finalizer () =
         Gc.compact () ;
         Lwt_main.run
-          ( Tezos_context.Context.close index >>= fun () ->
+          ( Tezos_context.Context_v0.close index >>= fun () ->
             Tezos_stdlib_unix.Lwt_utils_unix.remove_dir base_dir )
       in
       let result =
@@ -371,7 +371,7 @@ module Context_size_dependent_write_bench : Benchmark.S = struct
       let finalizer () =
         Gc.compact () ;
         Lwt_main.run
-          ( Tezos_context.Context.close index >>= fun () ->
+          ( Tezos_context.Context_v0.close index >>= fun () ->
             Tezos_stdlib_unix.Lwt_utils_unix.remove_dir base_dir )
       in
       let result =
@@ -632,7 +632,7 @@ module Irmin_pack_read_bench : Benchmark.S = struct
       let finalizer () =
         Gc.compact () ;
         Lwt_main.run
-          ( Tezos_context.Context.close index >>= fun () ->
+          ( Tezos_context.Context_v0.close index >>= fun () ->
             Tezos_stdlib_unix.Lwt_utils_unix.remove_dir base_dir )
       in
       let result =
@@ -804,7 +804,7 @@ module Irmin_pack_write_bench : Benchmark.S = struct
       let finalizer () =
         Gc.compact () ;
         Lwt_main.run
-          ( Tezos_context.Context.close index >>= fun () ->
+          ( Tezos_context.Context_v0.close index >>= fun () ->
             Tezos_stdlib_unix.Lwt_utils_unix.remove_dir base_dir )
       in
       let result =
@@ -906,7 +906,7 @@ module Read_random_key_bench : Benchmark.S = struct
       in
       let finalizer () =
         Gc.compact () ;
-        Lwt_main.run (Tezos_context.Context.close index)
+        Lwt_main.run (Tezos_context.Context_v0.close index)
       in
       let result =
         try f context
@@ -1089,7 +1089,7 @@ module Write_random_keys_bench : Benchmark.S = struct
       let finalizer () =
         Gc.compact () ;
         Lwt_main.run
-          ( Tezos_context.Context.close index >>= fun () ->
+          ( Tezos_context.Context_v0.close index >>= fun () ->
             Tezos_stdlib_unix.Lwt_utils_unix.remove_dir target_base_dir )
       in
       let result =

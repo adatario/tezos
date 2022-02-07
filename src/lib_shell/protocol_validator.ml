@@ -138,7 +138,7 @@ let fetch_and_compile_protocols pv ?peer ?timeout (block : Store.Block.t) =
   | Some chain_store ->
       Store.Block.context chain_store block >>=? fun context ->
       let protocol =
-        Context.get_protocol context >>= fun protocol_hash ->
+        Context_v0.get_protocol context >>= fun protocol_hash ->
         fetch_and_compile_protocol pv ?peer ?timeout protocol_hash
         >>=? fun _p ->
         Store.Chain.may_update_protocol_level
@@ -146,7 +146,7 @@ let fetch_and_compile_protocols pv ?peer ?timeout (block : Store.Block.t) =
           ~protocol_level
           (block, protocol_hash)
       and test_protocol =
-        Context.get_test_chain context >>= function
+        Context_v0.get_test_chain context >>= function
         | Not_running -> return_unit
         | Forking {protocol; _} | Running {protocol; _} -> (
             fetch_and_compile_protocol pv ?peer ?timeout protocol >>=? fun _ ->

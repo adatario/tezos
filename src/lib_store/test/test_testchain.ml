@@ -38,16 +38,16 @@ let fork_testchain chain_store (blocks, forked_block) =
   let global_store = Store.Chain.global_store chain_store in
   let context_index = Store.context_index global_store in
   let open Tezos_context in
-  (* Call [Context.fork_test_chain] then commit so we are able to gather
+  (* Call [Context_v0.fork_test_chain] then commit so we are able to gather
      commit info *)
   let*! context =
-    Context.checkout_exn context_index head_header.shell.context
+    Context_v0.checkout_exn context_index head_header.shell.context
   in
   let*! context =
-    Context.fork_test_chain context ~protocol:test_protocol ~expiration
+    Context_v0.fork_test_chain context ~protocol:test_protocol ~expiration
   in
   let*! context_hash =
-    Context.commit ~time:head_header.shell.timestamp context
+    Context_v0.commit ~time:head_header.shell.timestamp context
   in
   let genesis_header =
     let shell =

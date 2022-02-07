@@ -68,7 +68,7 @@ let genesis : Genesis.t =
 let chain_id = Chain_id.of_block_hash genesis_block_hash
 
 let patch_context ctxt =
-  Context.add ctxt ["version"] (Bytes.of_string "demo_noops") >>= return
+  Context_v0.add ctxt ["version"] (Bytes.of_string "demo_noops") >>= return
 
 (** [init_chain base_dir] with working directory [base_dir] returns a new state
     with a single genesis block *)

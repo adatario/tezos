@@ -46,10 +46,10 @@ val may_patch_protocol :
   Tezos_protocol_environment.validation_result Lwt.t
 
 val update_testchain_status :
-  Context.t ->
+  Context_v0.t ->
   predecessor_hash:Block_hash.t ->
   Time.Protocol.t ->
-  Context.t Lwt.t
+  Context_v0.t Lwt.t
 
 (** [check_proto_environment_version_increasing hash before after]
     returns successfully if the environment version stays the same or
@@ -60,7 +60,7 @@ val check_proto_environment_version_increasing :
 
 (** [init_test_chain] must only be called on a forking block. *)
 val init_test_chain :
-  Context.t -> Block_header.t -> Block_header.t tzresult Lwt.t
+  Context_v0.t -> Block_header.t -> Block_header.t tzresult Lwt.t
 
 type result = {
   validation_store : validation_store;
@@ -91,7 +91,7 @@ type apply_environment = {
   chain_id : Chain_id.t;  (** chain_id of the current branch *)
   predecessor_block_header : Block_header.t;
       (** header of the predecessor block being validated *)
-  predecessor_context : Context.t;
+  predecessor_context : Context_v0.t;
       (** context associated to the predecessor block *)
   predecessor_block_metadata_hash : Block_metadata_hash.t option;
       (** hash of block header metadata of the predecessor block *)
@@ -110,7 +110,7 @@ type apply_environment = {
     3. [P.finalize_block]
 *)
 val apply :
-  ?cached_result:apply_result * Context.t ->
+  ?cached_result:apply_result * Context_v0.t ->
   apply_environment ->
   cache:Environment_context.Context.source_of_cache ->
   Block_header.t ->
@@ -126,7 +126,7 @@ val precheck :
   chain_id:Chain_id.t ->
   predecessor_block_header:Block_header.t ->
   predecessor_block_hash:Block_hash.t ->
-  predecessor_context:Context.t ->
+  predecessor_context:Context_v0.t ->
   cache:Environment_context.Context.source_of_cache ->
   Block_header.t ->
   Operation.t list list ->
@@ -140,7 +140,7 @@ val preapply :
   protocol_data:bytes ->
   live_blocks:Block_hash.Set.t ->
   live_operations:Operation_hash.Set.t ->
-  predecessor_context:Context.t ->
+  predecessor_context:Context_v0.t ->
   predecessor_shell_header:Block_header.shell_header ->
   predecessor_hash:Block_hash.t ->
   predecessor_max_operations_ttl:int ->
@@ -148,6 +148,6 @@ val preapply :
   predecessor_ops_metadata_hash:Operation_metadata_list_list_hash.t option ->
   Operation.t list list ->
   ((Block_header.shell_header * error Preapply_result.t list)
-  * (apply_result * Context.t))
+  * (apply_result * Context_v0.t))
   tzresult
   Lwt.t

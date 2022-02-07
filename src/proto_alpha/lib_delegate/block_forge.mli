@@ -38,7 +38,7 @@ type simulation_kind =
       payload_hash : Block_payload_hash.t;
     }
 
-type simulation_mode = Local of Context.index | Node
+type simulation_mode = Local of Context_v0.index | Node
 
 val forge_faked_protocol_data :
   ?payload_hash:Block_payload_hash.t ->

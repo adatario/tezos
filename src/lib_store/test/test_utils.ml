@@ -117,7 +117,7 @@ let dummy_patch_context ctxt =
   let open Lwt_result_syntax in
   let open Tezos_context in
   let open Tezos_protocol_alpha in
-  let*! ctxt = Context.add ctxt ["version"] (Bytes.of_string "genesis") in
+  let*! ctxt = Context_v0.add ctxt ["version"] (Bytes.of_string "genesis") in
   let open Tezos_protocol_alpha_parameters in
   let proto_params =
     let json =
@@ -126,7 +126,7 @@ let dummy_patch_context ctxt =
     in
     Data_encoding.Binary.to_bytes_exn Data_encoding.json json
   in
-  let*! ctxt = Context.add ctxt ["protocol_parameters"] proto_params in
+  let*! ctxt = Context_v0.add ctxt ["protocol_parameters"] proto_params in
   let ctxt = Tezos_shell_context.Shell_context.wrap_disk_context ctxt in
   let*! res =
     Protocol.Main.init
@@ -428,7 +428,7 @@ let append_blocks ?min_lafl ?constants ?max_operations_ttl ?root ?(kind = `Full)
   in
   let* root_b = Store.Block.read_block chain_store (fst root) in
   let*! ctxt_opt =
-    Tezos_context.Context.checkout
+    Tezos_context.Context_v0.checkout
       (Store.context_index (Store.Chain.global_store chain_store))
       (Store.Block.context_hash root_b)
   in
@@ -443,12 +443,12 @@ let append_blocks ?min_lafl ?constants ?max_operations_ttl ?root ?(kind = `Full)
             let open Tezos_context in
             let ctxt = WithExceptions.Option.get ~loc:__LOC__ ctxt_opt in
             let*! ctxt =
-              Tezos_context.Context.add
+              Tezos_context.Context_v0.add
                 ctxt
                 ["level"]
                 (Bytes.of_string (Format.asprintf "%ld" (Block_repr.level b)))
             in
-            let*! ctxt_hash = Context.commit ~time:Time.Protocol.epoch ctxt in
+            let*! ctxt_hash = Context_v0.commit ~time:Time.Protocol.epoch ctxt in
             let predecessor =
               Option.value ~default:(Block_repr.predecessor b) last_opt
             in

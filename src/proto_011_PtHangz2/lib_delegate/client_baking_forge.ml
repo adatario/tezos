@@ -188,7 +188,7 @@ type slot =
 
 type state = {
   context_path : string;
-  mutable index : Context.index;
+  mutable index : Context_v0.index;
   (* Nonces file location *)
   nonces_location : [`Nonce] Client_baking_files.location;
   (* see [get_delegates] below to find delegates when the list is empty *)
@@ -927,19 +927,19 @@ let finalize_block_header shell_header ~timestamp validation_result
   let context = Shell_context.unwrap_disk_context context in
   (match predecessor_block_metadata_hash with
   | Some predecessor_block_metadata_hash ->
-      Context.add_predecessor_block_metadata_hash
+      Context_v0.add_predecessor_block_metadata_hash
         context
         predecessor_block_metadata_hash
   | None -> Lwt.return context)
   >>= fun context ->
   (match predecessor_ops_metadata_hash with
   | Some predecessor_ops_metadata_hash ->
-      Context.add_predecessor_ops_metadata_hash
+      Context_v0.add_predecessor_ops_metadata_hash
         context
         predecessor_ops_metadata_hash
   | None -> Lwt.return context)
   >>= fun context ->
-  let context = Context.hash ~time:timestamp ?message context in
+  let context = Context_v0.hash ~time:timestamp ?message context in
   return {header with context}
 
 let forge_block cctxt ?force ?(best_effort = true) ?(sort = best_effort)
@@ -1033,7 +1033,7 @@ let forge_block cctxt ?force ?(best_effort = true) ?(sort = best_effort)
   | Some context_path ->
       assert sort ;
       assert best_effort ;
-      Context.init ~readonly:true context_path >>= fun index ->
+      Context_v0.init ~readonly:true context_path >>= fun index ->
       Client_baking_files.resolve_location cctxt ~chain `Nonce
       >>=? fun nonces_location ->
       let state =
@@ -1075,7 +1075,7 @@ let forge_block cctxt ?force ?(best_effort = true) ?(sort = best_effort)
       let context =
         Shell_context.unwrap_disk_context validation_result.context
       in
-      Context.get_protocol context >>= fun next_protocol ->
+      Context_v0.get_protocol context >>= fun next_protocol ->
       if Protocol_hash.equal current_protocol next_protocol then
         finalize_block_header
           final_context.header
@@ -1443,7 +1443,7 @@ let build_block cctxt ~user_activated_upgrades state seed_nonce_hash
             let context =
               Shell_context.unwrap_disk_context validation_result.context
             in
-            Context.get_protocol context >>= fun next_protocol ->
+            Context_v0.get_protocol context >>= fun next_protocol ->
             if Protocol_hash.equal current_protocol next_protocol then
               finalize_block_header
                 final_context.header
@@ -1855,7 +1855,7 @@ let create (cctxt : #Protocol_client_context.full) ~user_activated_upgrades
         state.retry_counter <- default_retry_counter ;
         return_unit
   in
-  let finalizer state = Context.close state.index in
+  let finalizer state = Context_v0.close state.index in
   Option.fold
     ~none:return_unit
     ~some:(fun per_block_vote_file ->

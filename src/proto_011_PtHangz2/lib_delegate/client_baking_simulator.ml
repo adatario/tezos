@@ -62,15 +62,15 @@ type incremental = {
   header : Tezos_base.Block_header.shell_header;
 }
 
-let load_context ~context_path = Context.init ~readonly:true context_path
+let load_context ~context_path = Context_v0.init ~readonly:true context_path
 
 let check_context_consistency index context_hash =
   (* Hypothesis : the version key exists *)
   let version_key = ["version"] in
-  Context.checkout index context_hash >>= function
+  Context_v0.checkout index context_hash >>= function
   | None -> fail Failed_to_checkout_context
   | Some context -> (
-      Context.mem context version_key >>= function
+      Context_v0.mem context version_key >>= function
       | true -> return_unit
       | false -> fail Invalid_context)
 

@@ -149,7 +149,7 @@ type gen_state = {
 }
 
 let get_n_endorsements ~endorsed_block ctxt n =
-  Context.get_endorsers ctxt >>=? fun validators_rights ->
+  Context_v0.get_endorsers ctxt >>=? fun validators_rights ->
   let validators_rights = List.sub validators_rights n in
   List.map_es
     (fun {Plugin.RPC.Validators.delegate; level; slots; _} ->
@@ -198,7 +198,7 @@ let rec generate_random_transfer ({remaining_transfers; _} as gen_state) ctxt =
       let open Account in
       let c1 = Alpha_context.Contract.implicit_contract a1.pkh in
       let c2 = Alpha_context.Contract.implicit_contract a2.pkh in
-      Context.Contract.balance ctxt c1 >>=? fun b1 ->
+      Context_v0.Contract.balance ctxt c1 >>=? fun b1 ->
       if Tez.(b1 < Tez.one) then generate_random_transfer gen_state ctxt
       else Op.transaction ctxt c1 c2 Tez.one
 
@@ -372,9 +372,9 @@ let init () =
         (let open Account in
         fun (({pkh; _} as acc), _) ->
           let contract = Alpha_context.Contract.implicit_contract acc.pkh in
-          Context.Contract.manager (B genesis) contract
+          Context_v0.Contract.manager (B genesis) contract
           >>=? fun {pkh = pkh'; _} ->
-          Context.Contract.balance (B genesis) contract >>=? fun balance ->
+          Context_v0.Contract.balance (B genesis) contract >>=? fun balance ->
           return
           @@ Format.printf
                "[DEBUG] %a's manager is %a with a balance of %a\n%!"

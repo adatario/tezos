@@ -742,7 +742,7 @@ let fix_protocol_levels context_index block_store genesis genesis_header ~head
         | Some previous_proto_level ->
             if Compare.Int.(previous_proto_level <> block_proto_level) then
               let*! o =
-                Context.checkout context_index (Block_repr.context block)
+                Context_v0.checkout context_index (Block_repr.context block)
               in
               match o with
               | None ->
@@ -758,10 +758,10 @@ let fix_protocol_levels context_index block_store genesis genesis_header ~head
                     ~level:(Int32.succ level)
                     acc
               | Some context ->
-                  let*! protocol_hash = Context.get_protocol context in
+                  let*! protocol_hash = Context_v0.get_protocol context in
                   let*! commit_info =
                     let*! r =
-                      Context.retrieve_commit_info
+                      Context_v0.retrieve_commit_info
                         context_index
                         (Block_repr.header block)
                     in
@@ -876,7 +876,7 @@ let fix_protocol_levels context_index block_store genesis genesis_header ~head
              let new_proto_level = Block_repr.proto_level block in
              if Compare.Int.(new_proto_level <> previous_protocol_level) then
                let*! o =
-                 Context.checkout context_index (Block_repr.context block)
+                 Context_v0.checkout context_index (Block_repr.context block)
                in
                match o with
                | None ->
@@ -889,10 +889,10 @@ let fix_protocol_levels context_index block_store genesis genesis_header ~head
                    in
                    return (pls, new_proto_level)
                | Some context ->
-                   let*! protocol_hash = Context.get_protocol context in
+                   let*! protocol_hash = Context_v0.get_protocol context in
                    let*! commit_info =
                      let*! r =
-                       Context.retrieve_commit_info
+                       Context_v0.retrieve_commit_info
                          context_index
                          (Block_repr.header block)
                      in
@@ -932,7 +932,7 @@ let fix_protocol_levels context_index block_store genesis genesis_header ~head
   (* Add the genesis protocol *)
   let protocol = genesis.Genesis.protocol in
   let*! genesis_commit_info =
-    let*! r = Context.retrieve_commit_info context_index genesis_header in
+    let*! r = Context_v0.retrieve_commit_info context_index genesis_header in
     match r with
     | Ok tup -> Lwt.return_some (Protocol_levels.commit_info_of_tuple tup)
     | Error _ -> Lwt.return_none
@@ -981,14 +981,14 @@ let fix_protocol_levels context_index block_store genesis genesis_header ~head
         | None -> corrupted_store head_proto_level head_hash
         | Some savepoint -> return savepoint
       in
-      let*! o = Context.checkout context_index (Block_repr.context savepoint) in
+      let*! o = Context_v0.checkout context_index (Block_repr.context savepoint) in
       match o with
       | None -> corrupted_store head_proto_level head_hash
       | Some context ->
-          let*! protocol_hash = Context.get_protocol context in
+          let*! protocol_hash = Context_v0.get_protocol context in
           let* commit_info =
             let*! r =
-              Context.retrieve_commit_info
+              Context_v0.retrieve_commit_info
                 context_index
                 (Block_repr.header savepoint)
             in

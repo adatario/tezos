@@ -198,7 +198,7 @@ let may_update_protocol_level chain_store ~block =
   let new_proto_level = Store.Block.proto_level block in
   if Compare.Int.(prev_proto_level < new_proto_level) then
     Store.Block.context chain_store block >>=? fun context ->
-    Context.get_protocol context >>= fun new_protocol ->
+    Context_v0.get_protocol context >>= fun new_protocol ->
     Store.Chain.may_update_protocol_level
       chain_store
       ~pred
@@ -210,8 +210,8 @@ let may_switch_test_chain w active_chains spawn_child block =
   let nv = Worker.state w in
   let may_create_child block test_protocol expiration forking_block_hash =
     let block_header = Store.Block.header block in
-    let genesis_hash = Context.compute_testchain_genesis forking_block_hash in
-    let testchain_id = Context.compute_testchain_chain_id genesis_hash in
+    let genesis_hash = Context_v0.compute_testchain_genesis forking_block_hash in
+    let testchain_id = Context_v0.compute_testchain_chain_id genesis_hash in
     (match nv.child with
     | None -> Lwt.return_false
     | Some (child, _) ->

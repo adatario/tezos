@@ -34,16 +34,16 @@ type incremental = {
   header : Tezos_base.Block_header.shell_header;
 }
 
-val load_context : context_path:string -> Context.index Lwt.t
+val load_context : context_path:string -> Context_v0.index Lwt.t
 
 (** Make sure that the given context is consistent by trying to read in it *)
 val check_context_consistency :
-  Context.index -> Context_hash.t -> unit tzresult Lwt.t
+  Context_v0.index -> Context_hash.t -> unit tzresult Lwt.t
 
 val begin_construction :
   timestamp:Time.Protocol.t ->
   ?protocol_data:block_header_data ->
-  Context.index ->
+  Context_v0.index ->
   Client_baking_blocks.block_info ->
   incremental tzresult Lwt.t
 

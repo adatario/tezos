@@ -29,16 +29,16 @@ let read_partial_context =
   fun context path depth ->
     if depth = 0 then Lwt.return Block_services.Cut
     else
-      (* According to the documentation of Context.fold,
+      (* According to the documentation of Context_v0.fold,
          "[f] is never called with an empty key for values; i.e.,
            folding over a value is a no-op".
          Therefore, we first need to check that whether its a value.
       *)
-      Context.find context path >>= function
+      Context_v0.find context path >>= function
       | Some v -> Lwt.return (Block_services.Key v)
       | None ->
           (* try to read as directory *)
-          Context.fold
+          Context_v0.fold
             ~depth:(`Le depth)
             context
             path
@@ -50,7 +50,7 @@ let read_partial_context =
                 (* only [=] case is possible because [~depth] is [(`Le depth)] *)
                 Lwt.return (raw_context_insert (k, Cut) acc)
               else
-                Context.Tree.to_value tree >|= function
+                Context_v0.Tree.to_value tree >|= function
                 | None -> acc
                 | Some v -> raw_context_insert (k, Key v) acc)
 
@@ -332,8 +332,8 @@ let build_raw_rpc_directory (module Proto : Block_services.PROTO)
       (* [depth] is defined as a [uint] not an [int] *)
       assert (depth >= 0) ;
       Store.Block.context chain_store block >>=? fun context ->
-      Context.mem context path >>= fun mem ->
-      Context.mem_tree context path >>= fun dir_mem ->
+      Context_v0.mem context path >>= fun mem ->
+      Context_v0.mem_tree context path >>= fun dir_mem ->
       if not (mem || dir_mem) then Lwt.fail Not_found
       else read_partial_context context path depth >>= Lwt.return_ok) ;
   register1 S.Context.merkle_tree (fun (chain_store, block) path query () ->
@@ -345,7 +345,7 @@ let build_raw_rpc_directory (module Proto : Block_services.PROTO)
             let open Tezos_shell_services.Block_services in
             if holey then Hole else Raw_context
           in
-          Context.merkle_tree context leaf_kind path >>= return_some) ;
+          Context_v0.merkle_tree context leaf_kind path >>= return_some) ;
   (* info *)
   register0 S.info (fun (chain_store, block) () () ->
       let chain_id = Store.Chain.chain_id chain_store in

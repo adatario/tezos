@@ -434,8 +434,8 @@ let patch_context ctxt ~json =
   let proto_params =
     Data_encoding.Binary.to_bytes_exn Data_encoding.json json
   in
-  let* ctxt = Context.add ctxt ["version"] (Bytes.of_string "genesis") in
-  let* ctxt = Context.add ctxt protocol_param_key proto_params in
+  let* ctxt = Context_v0.add ctxt ["version"] (Bytes.of_string "genesis") in
+  let* ctxt = Context_v0.add ctxt protocol_param_key proto_params in
   let ctxt = Shell_context.wrap_disk_context ctxt in
   let* r = Main.init ctxt shell in
   match r with
@@ -486,12 +486,12 @@ let apply ctxt chain_id ~policy ?(operations = empty_operations) pred =
   let*! context =
     match Store.Block.block_metadata_hash pred with
     | None -> Lwt.return ctxt
-    | Some hash -> Context.add_predecessor_block_metadata_hash ctxt hash
+    | Some hash -> Context_v0.add_predecessor_block_metadata_hash ctxt hash
   in
   let*! ctxt =
     match Store.Block.all_operations_metadata_hash pred with
     | None -> Lwt.return context
-    | Some hash -> Context.add_predecessor_ops_metadata_hash context hash
+    | Some hash -> Context_v0.add_predecessor_ops_metadata_hash context hash
   in
   let predecessor_context = Shell_context.wrap_disk_context ctxt in
   let* element_of_key =
@@ -549,7 +549,7 @@ let apply ctxt chain_id ~policy ?(operations = empty_operations) pred =
   let validation = {validation with max_operations_ttl} in
   let context = Shell_context.unwrap_disk_context validation.context in
   let*! context_hash =
-    Context.commit ~time:shell.timestamp ?message:validation.message context
+    Context_v0.commit ~time:shell.timestamp ?message:validation.message context
   in
   let block_header_metadata =
     Data_encoding.Binary.to_bytes_exn

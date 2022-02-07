@@ -23,7 +23,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-module Context = struct
+module Context_v0 = struct
   type error +=
     | Cannot_create_file = Context.Cannot_create_file
     | Cannot_open_file = Context.Cannot_open_file

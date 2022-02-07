@@ -57,7 +57,7 @@ type store = {
      to be modified. *)
   (* Invariant : main_chain_store <> None *)
   mutable main_chain_store : chain_store option;
-  context_index : Context.index;
+  context_index : Context_v0.index;
   protocol_store : Protocol_store.t;
   allow_testchains : bool;
   protocol_watcher : Protocol_hash.t Lwt_watcher.input;
@@ -567,11 +567,11 @@ module Block = struct
 
   let context_exn chain_store block =
     let context_index = chain_store.global_store.context_index in
-    Context.checkout_exn context_index (Block_repr.context block)
+    Context_v0.checkout_exn context_index (Block_repr.context block)
 
   let context_opt chain_store block =
     let context_index = chain_store.global_store.context_index in
-    Context.checkout context_index (Block_repr.context block)
+    Context_v0.checkout context_index (Block_repr.context block)
 
   let context chain_store block =
     let open Lwt_tzresult_syntax in
@@ -585,7 +585,7 @@ module Block = struct
 
   let context_exists chain_store block =
     let context_index = chain_store.global_store.context_index in
-    Context.exists context_index (Block_repr.context block)
+    Context_v0.exists context_index (Block_repr.context block)
 
   let testchain_status chain_store block =
     let open Lwt_tzresult_syntax in
@@ -598,14 +598,14 @@ module Block = struct
             (Cannot_checkout_context
                (Block_repr.hash block, Block_repr.context block))
     in
-    let*! status = Context.get_test_chain context in
+    let*! status = Context_v0.get_test_chain context in
     match status with
     | Running {genesis; _} ->
         Shared.use chain_store.chain_state (fun chain_state ->
             let*! forked_chains =
               Stored_data.get chain_state.forked_chains_data
             in
-            let testchain_id = Context.compute_testchain_chain_id genesis in
+            let testchain_id = Context_v0.compute_testchain_chain_id genesis in
             let forked_hash_opt =
               Chain_id.Map.find testchain_id forked_chains
             in
@@ -1991,7 +1991,7 @@ module Chain = struct
           Error_monad.pp_print_trace
           err)
       (fun () ->
-        let* tup = Context.retrieve_commit_info index header in
+        let* tup = Context_v0.retrieve_commit_info index header in
         return (Protocol_levels.commit_info_of_tuple tup))
 
   let get_commit_info_opt index header =
@@ -2168,7 +2168,7 @@ module Chain = struct
       ~genesis_header ~test_protocol ~expiration =
     let open Lwt_tzresult_syntax in
     let forked_block_hash = Block.hash forked_block in
-    let genesis_hash' = Context.compute_testchain_genesis forked_block_hash in
+    let genesis_hash' = Context_v0.compute_testchain_genesis forked_block_hash in
     assert (Block_hash.equal genesis_hash genesis_hash') ;
     let* () =
       fail_unless
@@ -2592,15 +2592,15 @@ let init ?patch_context ?commit_genesis ?history_mode ?(readonly = false)
     match commit_genesis with
     | Some commit_genesis ->
         let*! context_index =
-          Context.init ~readonly:true ?patch_context context_dir
+          Context_v0.init ~readonly:true ?patch_context context_dir
         in
         Lwt.return (context_index, commit_genesis)
     | None ->
         let*! context_index =
-          Context.init ~readonly ?patch_context context_dir
+          Context_v0.init ~readonly ?patch_context context_dir
         in
         let commit_genesis ~chain_id =
-          Context.commit_genesis
+          Context_v0.commit_genesis
             context_index
             ~chain_id
             ~time:genesis.time
@@ -2644,7 +2644,7 @@ let close_store global_store =
     WithExceptions.Option.get ~loc:__LOC__ global_store.main_chain_store
   in
   let* () = Chain.close_chain_store main_chain_store in
-  Context.close global_store.context_index
+  Context_v0.close global_store.context_index
 
 let may_switch_history_mode ~store_dir ~context_dir genesis ~new_history_mode =
   let open Lwt_tzresult_syntax in
@@ -2656,7 +2656,7 @@ let may_switch_history_mode ~store_dir ~context_dir genesis ~new_history_mode =
   then (* Nothing to do, the store is not set *)
     return_unit
   else
-    let*! context_index = Context.init ~readonly:false context_dir in
+    let*! context_index = Context_v0.init ~readonly:false context_dir in
     let* store =
       load_store
         store_dir
@@ -3026,7 +3026,7 @@ module Unsafe = struct
     let*! () = lock_for_read lockfile in
     protect
       (fun () ->
-        let*! context_index = Context.init ~readonly:true context_dir in
+        let*! context_index = Context_v0.init ~readonly:true context_dir in
         let* store =
           load_store
             store_dir
@@ -3174,7 +3174,7 @@ module Unsafe = struct
           | (Some _block, None) -> return_unit
           | (Some block, Some commit_info) ->
               let*! is_consistent =
-                Context.check_protocol_commit_consistency
+                Context_v0.check_protocol_commit_consistency
                   context_index
                   ~expected_context_hash:(Block.context_hash block)
                   ~given_protocol_hash:protocol

@@ -57,22 +57,22 @@ module Init = struct
 
   let genesis_time = Time.Protocol.of_seconds 0L
 
-  (** [wrap_tzresult_lwt f ()] provides an instance of {!Context.t} to
+  (** [wrap_tzresult_lwt f ()] provides an instance of {!Context_v0.t} to
       a test [f]. For this, it creates a temporary directory on disk,
-      populates it with the data required for a {!Context.t} and then calls
-      [f] by passing it an empty [Context.t]. After [f] finishes, the state
+      populates it with the data required for a {!Context_v0.t} and then calls
+      [f] by passing it an empty [Context_v0.t]. After [f] finishes, the state
       is cleaned up. *)
-  let wrap_tzresult_lwt (f : Context.t -> unit tzresult Lwt.t) () :
+  let wrap_tzresult_lwt (f : Context_v0.t -> unit tzresult Lwt.t) () :
       unit tzresult Lwt.t =
     Lwt_utils_unix.with_tempdir "tezos_test_" (fun base_dir ->
         let root = Filename.concat base_dir "context" in
-        Context.init root >>= fun idx ->
-        Context.commit_genesis
+        Context_v0.init root >>= fun idx ->
+        Context_v0.commit_genesis
           idx
           ~chain_id
           ~time:genesis_time
           ~protocol:genesis_protocol
-        >>=? fun genesis -> Context.checkout_exn idx genesis >>= f)
+        >>=? fun genesis -> Context_v0.checkout_exn idx genesis >>= f)
 
   let genesis_block (context_hash : Context_hash.t) : Store.Block.t =
     let block_hash : Block_hash.t = Block_hash.hash_string ["genesis"] in
@@ -94,7 +94,7 @@ let create_prevalidation
     Internal_for_tests.CHAIN_STORE with type chain_store = unit = struct
     type chain_store = unit
 
-    let context () _block : Tezos_context.Context.t tzresult Lwt.t = return ctxt
+    let context () _block : Tezos_context.Context_v0.t tzresult Lwt.t = return ctxt
 
     let chain_id () = Init.chain_id
   end in
@@ -119,7 +119,7 @@ let test_create ctxt =
     create_prevalidation (module Mock_protocol) ctxt
   in
   let predecessor : Store.Block.t =
-    Init.genesis_block @@ Context.hash ~time:timestamp ctxt
+    Init.genesis_block @@ Context_v0.hash ~time:timestamp ctxt
   in
   Prevalidation.create chain_store ~predecessor ~live_operations ~timestamp ()
   >|=? ignore
@@ -170,7 +170,7 @@ let test_apply_operation_crash ctxt =
     mk_ops (module P)
   in
   let predecessor : Store.Block.t =
-    Init.genesis_block @@ Context.hash ~time:timestamp ctxt
+    Init.genesis_block @@ Context_v0.hash ~time:timestamp ctxt
   in
   P.create chain_store ~predecessor ~live_operations ~timestamp ()
   >>=? fun pv ->
@@ -235,7 +235,7 @@ let test_apply_operation_live_operations ctxt =
   in
   let live_operations : Operation_hash.Set.t = mk_live_operations rand ops in
   let predecessor : Store.Block.t =
-    Init.genesis_block @@ Context.hash ~time:timestamp ctxt
+    Init.genesis_block @@ Context_v0.hash ~time:timestamp ctxt
   in
   P.create chain_store ~predecessor ~live_operations ~timestamp ()
   >>=? fun pv ->
@@ -283,7 +283,7 @@ let test_apply_operation_applied ctxt =
   in
   let live_operations : Operation_hash.Set.t = mk_live_operations rand ops in
   let predecessor : Store.Block.t =
-    Init.genesis_block @@ Context.hash ~time:timestamp ctxt
+    Init.genesis_block @@ Context_v0.hash ~time:timestamp ctxt
   in
   P.create chain_store ~predecessor ~live_operations ~timestamp ()
   >>=? fun pv ->

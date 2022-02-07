@@ -28,7 +28,7 @@ open Context
 open Lwt.Infix
 
 module C = struct
-  include Tezos_context.Context
+  include Tezos_context.Context_v0
 
   let set_protocol = add_protocol
 end
@@ -38,18 +38,18 @@ include Environment_context.Register (C)
 let impl_name = "shell"
 
 let checkout index context_hash =
-  Tezos_context.Context.checkout index context_hash
+  Tezos_context.Context_v0.checkout index context_hash
   >|= Option.map @@ fun ctxt ->
       Context.make ~ops ~ctxt ~kind:Context ~equality_witness ~impl_name
 
 let checkout_exn index context_hash =
-  Tezos_context.Context.checkout_exn index context_hash >|= fun ctxt ->
+  Tezos_context.Context_v0.checkout_exn index context_hash >|= fun ctxt ->
   Context.make ~ops ~ctxt ~kind:Context ~equality_witness ~impl_name
 
 let wrap_disk_context ctxt =
   Context.make ~ops ~ctxt ~kind:Context ~equality_witness ~impl_name
 
-let unwrap_disk_context : t -> Tezos_context.Context.t = function
+let unwrap_disk_context : t -> Tezos_context.Context_v0.t = function
   | Context.Context {ctxt; kind = Context; _} -> ctxt
   | Context.Context t ->
       Environment_context.err_implementation_mismatch

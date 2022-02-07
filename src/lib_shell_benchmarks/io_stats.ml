@@ -103,7 +103,7 @@ let context_statistics base_dir context_hash =
     Io_helpers.load_context_from_disk base_dir context_hash
   in
   load_tree context [] >>= fun tree ->
-  Tezos_context.Context.close index >>= fun () ->
+  Tezos_context.Context_v0.close index >>= fun () ->
   Lwt.return (tree_statistics tree)
 
 let matrix_of_int_list (l : int list) =

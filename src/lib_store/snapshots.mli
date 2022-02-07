@@ -193,7 +193,7 @@ val export :
    block. *)
 val import :
   snapshot_path:string ->
-  ?patch_context:(Context.t -> Context.t tzresult Lwt.t) ->
+  ?patch_context:(Context_v0.t -> Context_v0.t tzresult Lwt.t) ->
   ?block:Block_hash.t ->
   ?check_consistency:bool ->
   dst_store_dir:string ->

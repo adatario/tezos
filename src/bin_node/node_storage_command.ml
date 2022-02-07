@@ -96,19 +96,19 @@ module Term = struct
   let integrity_check config_file data_dir auto_repair =
     let open Lwt_result_syntax in
     let* root = root config_file data_dir in
-    let*! () = Context.Checks.Pack.Integrity_check.run ~root ~auto_repair in
+    let*! () = Context_v0.Checks.Pack.Integrity_check.run ~root ~auto_repair in
     return_unit
 
   let stat_index config_file data_dir =
     let open Lwt_result_syntax in
     let* root = root config_file data_dir in
-    Context.Checks.Index.Stat.run ~root ;
+    Context_v0.Checks.Index.Stat.run ~root ;
     return_unit
 
   let stat_pack config_file data_dir =
     let open Lwt_result_syntax in
     let* root = root config_file data_dir in
-    let*! () = Context.Checks.Pack.Stat.run ~root in
+    let*! () = Context_v0.Checks.Pack.Stat.run ~root in
     return_unit
 
   let index_dir_exists context_dir output =
@@ -121,7 +121,7 @@ module Term = struct
     let open Lwt_result_syntax in
     let* root = root config_file data_dir in
     let* () = index_dir_exists root output in
-    Context.Checks.Pack.Reconstruct_index.run ~root ~output ~index_log_size () ;
+    Context_v0.Checks.Pack.Reconstruct_index.run ~root ~output ~index_log_size () ;
     return_unit
 
   let to_context_hash chain_store (hash : Block_hash.t) =
@@ -161,14 +161,14 @@ module Term = struct
     let* root = root config_file data_dir in
     let* head = current_head config_file data_dir block in
     let*! () =
-      Context.Checks.Pack.Integrity_check_inodes.run ~root ~heads:(Some [head])
+      Context_v0.Checks.Pack.Integrity_check_inodes.run ~root ~heads:(Some [head])
     in
     return_unit
 
   let check_index config_file data_dir auto_repair =
     let open Lwt_result_syntax in
     let* root = root config_file data_dir in
-    Context.Checks.Pack.Integrity_check_index.run ~root ~auto_repair () ;
+    Context_v0.Checks.Pack.Integrity_check_index.run ~root ~auto_repair () ;
     return_unit
 
   let find_head config_file data_dir head =

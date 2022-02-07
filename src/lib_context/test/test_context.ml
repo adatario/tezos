@@ -87,7 +87,7 @@ let create_block3b idx block2_commit =
       commit ctxt
 
 type t = {
-  idx : Context.index;
+  idx : Context_v0.index;
   genesis : Context_hash.t;
   block2 : Context_hash.t;
   block3a : Context_hash.t;
@@ -97,8 +97,8 @@ type t = {
 let wrap_context_init f _ () =
   Lwt_utils_unix.with_tempdir "tezos_test_" (fun base_dir ->
       let root = base_dir // "context" in
-      Context.init root >>= fun idx ->
-      Context.commit_genesis
+      Context_v0.init root >>= fun idx ->
+      Context_v0.commit_genesis
         idx
         ~chain_id
         ~time:genesis_time
@@ -474,15 +474,15 @@ let test_dump {idx; block3b; _} =
       >>= fun context_fd ->
         Lwt.finalize
           (fun () ->
-            Context.dump_context idx target_context_hash ~fd:context_fd)
+            Context_v0.dump_context idx target_context_hash ~fd:context_fd)
           (fun () -> Lwt_unix.close context_fd) )
       >>=? fun _ ->
       let root = base_dir2 // "context" in
-      Context.init ?patch_context:None root >>= fun idx2 ->
+      Context_v0.init ?patch_context:None root >>= fun idx2 ->
       Lwt_unix.openfile dumpfile Lwt_unix.[O_RDONLY] 0o444 >>= fun context_fd ->
       Lwt.finalize
         (fun () ->
-          Context.restore_context
+          Context_v0.restore_context
             idx2
             ~expected_context_hash:target_context_hash
             ~nb_context_elements
@@ -495,9 +495,9 @@ let test_is_empty {idx; block2; _} =
   | None -> Assert.fail_msg "checkout block2"
   | Some ctxt -> (
       (* By [create_block2] above, [ctxt] maps "a/b", "a/c", and "version" *)
-      let etree = Context.Tree.empty ctxt in
+      let etree = Context_v0.Tree.empty ctxt in
       Assert.equal_bool true (Tree.is_empty etree) ;
-      Context.find_tree ctxt ["a"] >>= function
+      Context_v0.find_tree ctxt ["a"] >>= function
       | None -> Assert.fail_msg "dir 'a/' not found"
       | Some dir_a ->
           Tree.remove dir_a ["b"] >>= fun dir_a ->
@@ -517,12 +517,12 @@ let test_is_empty {idx; block2; _} =
           Assert.equal_bool
             ~msg:"directory /a/ is unexpectedly not empty"
             true
-            (Context.Tree.is_empty dir_a) ;
+            (Context_v0.Tree.is_empty dir_a) ;
           Lwt.return_unit)
 
 (** Test that [get_hash_version succeeds] *)
 let test_get_version_hash {idx; block2; _} =
-  Context.checkout_exn idx block2 >|= fun ctxt ->
+  Context_v0.checkout_exn idx block2 >|= fun ctxt ->
   let _ = get_hash_version ctxt in
   ()
 
@@ -530,7 +530,7 @@ let test_get_version_hash {idx; block2; _} =
 let test_set_version_hash_tzresult {idx; block2; _} =
   List.iter_s
     (fun wrong_version ->
-      Context.checkout_exn idx block2 >>= fun ctxt ->
+      Context_v0.checkout_exn idx block2 >>= fun ctxt ->
       set_hash_version ctxt @@ Context_hash.Version.of_int wrong_version
       >|= function
       | Ok _ -> Assert.fail_msg "set_hash_version should have returned Error _"

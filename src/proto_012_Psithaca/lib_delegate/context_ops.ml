@@ -27,7 +27,7 @@
 
 let mem (context : Environment_context.Context.t) key =
   match context with
-  | Context {kind = Shell_context.Context; ctxt; _} -> Context.mem ctxt key
+  | Context {kind = Shell_context.Context; ctxt; _} -> Context_v0.mem ctxt key
   | Context {kind = Memory_context.Context; ctxt; _} ->
       Tezos_context_memory.Context_v0.mem ctxt key
   | Context t ->
@@ -37,7 +37,7 @@ let mem (context : Environment_context.Context.t) key =
 
 let get_protocol (context : Environment_context.Context.t) =
   match context with
-  | Context {kind = Shell_context.Context; ctxt; _} -> Context.get_protocol ctxt
+  | Context {kind = Shell_context.Context; ctxt; _} -> Context_v0.get_protocol ctxt
   | Context {kind = Memory_context.Context; ctxt; _} ->
       Tezos_context_memory.Context_v0.get_protocol ctxt
   | Context t ->
@@ -49,7 +49,7 @@ let add_predecessor_block_metadata_hash
     (context : Environment_context.Context.t) hash =
   match context with
   | Context {kind = Shell_context.Context; ctxt; _} ->
-      Context.add_predecessor_block_metadata_hash ctxt hash
+      Context_v0.add_predecessor_block_metadata_hash ctxt hash
       >|= Shell_context.wrap_disk_context
   | Context {kind = Memory_context.Context; ctxt; _} ->
       Tezos_context_memory.Context_v0.add_predecessor_block_metadata_hash ctxt hash
@@ -63,7 +63,7 @@ let add_predecessor_ops_metadata_hash (context : Environment_context.Context.t)
     hash =
   match context with
   | Context {kind = Shell_context.Context; ctxt; _} ->
-      Context.add_predecessor_ops_metadata_hash ctxt hash
+      Context_v0.add_predecessor_ops_metadata_hash ctxt hash
       >|= Shell_context.wrap_disk_context
   | Context {kind = Memory_context.Context; ctxt; _} ->
       Tezos_context_memory.Context_v0.add_predecessor_ops_metadata_hash ctxt hash
@@ -76,7 +76,7 @@ let add_predecessor_ops_metadata_hash (context : Environment_context.Context.t)
 let hash ~time ?message (context : Environment_context.Context.t) =
   match context with
   | Context {kind = Shell_context.Context; ctxt; _} ->
-      Context.hash ~time ?message ctxt
+      Context_v0.hash ~time ?message ctxt
   | Context {kind = Memory_context.Context; ctxt; _} ->
       Tezos_context_memory.Context_v0.hash ~time ?message ctxt
   | Context t ->
@@ -87,7 +87,7 @@ let hash ~time ?message (context : Environment_context.Context.t) =
 let get_test_chain (context : Environment_context.Context.t) =
   match context with
   | Context {kind = Shell_context.Context; ctxt; _} ->
-      Context.get_test_chain ctxt
+      Context_v0.get_test_chain ctxt
   | Context {kind = Memory_context.Context; _} ->
       Lwt.return Test_chain_status.Not_running
   | Context t ->
@@ -98,7 +98,7 @@ let get_test_chain (context : Environment_context.Context.t) =
 let add_test_chain (context : Environment_context.Context.t) status =
   match context with
   | Context {kind = Shell_context.Context; ctxt; _} ->
-      Context.add_test_chain ctxt status >|= Shell_context.wrap_disk_context
+      Context_v0.add_test_chain ctxt status >|= Shell_context.wrap_disk_context
   | Context {kind = Memory_context.Context; ctxt; _} ->
       Tezos_context_memory.Context_v0.add_test_chain ctxt status
       >|= Memory_context.wrap_memory_context

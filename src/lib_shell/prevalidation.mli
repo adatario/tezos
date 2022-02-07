@@ -144,7 +144,7 @@ module Internal_for_tests : sig
     type chain_store
 
     (** [context store block] checkouts and returns the context of [block] *)
-    val context : chain_store -> Store.Block.t -> Context.t tzresult Lwt.t
+    val context : chain_store -> Store.Block.t -> Context_v0.t tzresult Lwt.t
 
     (** [chain_id store] returns the {!Chain_id.t} to which [store] corresponds *)
     val chain_id : chain_store -> Chain_id.t

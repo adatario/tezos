@@ -178,7 +178,7 @@ let init input =
     Option.map (fun p -> ("sandbox_parameter", p)) sandbox_parameters
   in
   let* context_index =
-    Context.init
+    Context_v0.init
       ~patch_context:(Patch_context.patch_context genesis sandbox_parameters)
       context_root
   in
@@ -218,7 +218,7 @@ let run input output =
         let*! () = Events.(emit commit_genesis_request genesis.block) in
         let*! commit =
           Error_monad.catch_es (fun () ->
-              Context.commit_genesis
+              Context_v0.commit_genesis
                 context_index
                 ~chain_id
                 ~time:genesis.time
@@ -248,7 +248,7 @@ let run input output =
                 let pred_context_hash =
                   predecessor_block_header.shell.context
                 in
-                let*! o = Context.checkout context_index pred_context_hash in
+                let*! o = Context_v0.checkout context_index pred_context_hash in
                 match o with
                 | Some context -> return context
                 | None ->
@@ -256,7 +256,7 @@ let run input output =
                       (Block_validator_errors.Failed_to_checkout_context
                          pred_context_hash))
           in
-          let*! protocol_hash = Context.get_protocol predecessor_context in
+          let*! protocol_hash = Context_v0.get_protocol predecessor_context in
           let* () = load_protocol protocol_hash protocol_root in
           let env =
             {
@@ -324,7 +324,7 @@ let run input output =
             Error_monad.catch_es (fun () ->
                 let pred_context_hash = predecessor_shell_header.context in
                 let*! context =
-                  Context.checkout context_index pred_context_hash
+                  Context_v0.checkout context_index pred_context_hash
                 in
                 match context with
                 | Some context -> return context
@@ -333,7 +333,7 @@ let run input output =
                       (Block_validator_errors.Failed_to_checkout_context
                          pred_context_hash))
           in
-          let*! protocol_hash = Context.get_protocol predecessor_context in
+          let*! protocol_hash = Context_v0.get_protocol predecessor_context in
           let* () = load_protocol protocol_hash protocol_root in
           with_retry_to_load_protocol protocol_root (fun () ->
               Block_validation.preapply
@@ -388,7 +388,7 @@ let run input output =
           let* predecessor_context =
             Error_monad.catch_es (fun () ->
                 let*! o =
-                  Context.checkout
+                  Context_v0.checkout
                     context_index
                     predecessor_block_header.shell.context
                 in
@@ -423,7 +423,7 @@ let run input output =
         loop cache cached_result
     | External_validation.Fork_test_chain {context_hash; forked_header} ->
         let*! () = Events.(emit fork_test_chain_request forked_header) in
-        let*! context_opt = Context.checkout context_index context_hash in
+        let*! context_opt = Context_v0.checkout context_index context_hash in
         let*! () =
           match context_opt with
           | Some ctxt ->

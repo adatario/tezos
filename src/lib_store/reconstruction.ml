@@ -193,7 +193,7 @@ let apply_context context_index chain_id ~user_activated_upgrades
   let predecessor_block_header = Store.Block.header predecessor_block in
   let context_hash = predecessor_block_header.shell.context in
   let* predecessor_context =
-    let*! o = Context.checkout context_index context_hash in
+    let*! o = Context_v0.checkout context_index context_hash in
     match o with
     | Some ctxt -> return ctxt
     | None ->

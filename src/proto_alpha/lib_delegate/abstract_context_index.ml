@@ -31,5 +31,5 @@ type t = {
 let abstract index =
   {
     checkout_fun = Shell_context.checkout index;
-    finalize_fun = (fun () -> Context.close index);
+    finalize_fun = (fun () -> Context_v0.close index);
   }

@@ -66,7 +66,7 @@ type error += Cannot_reconstruct of History_mode.t
     [context_dir]. The resulting storage will see its history mode
     changed to archive. *)
 val reconstruct :
-  ?patch_context:(Context.t -> Context.t tzresult Lwt.t) ->
+  ?patch_context:(Context_v0.t -> Context_v0.t tzresult Lwt.t) ->
   store_dir:string ->
   context_dir:string ->
   Genesis.t ->

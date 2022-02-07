@@ -1226,7 +1226,7 @@ module type EXPORTER = sig
     export_block:Store.Block.t ->
     unit Lwt.t
 
-  val dump_context : t -> Context.index -> Context_hash.t -> int tzresult Lwt.t
+  val dump_context : t -> Context_v0.index -> Context_hash.t -> int tzresult Lwt.t
 
   val copy_cemented_block :
     t -> file:string -> start_level:int32 -> end_level:int32 -> unit Lwt.t
@@ -1324,7 +1324,7 @@ module Raw_exporter : EXPORTER = struct
         0o444
     in
     Lwt.finalize
-      (fun () -> Context.dump_context context_index context_hash ~fd)
+      (fun () -> Context_v0.dump_context context_index context_hash ~fd)
       (fun () -> Lwt_unix.close fd)
 
   let copy_cemented_block t ~file ~start_level ~end_level =
@@ -1554,7 +1554,7 @@ module Tar_exporter : EXPORTER = struct
     Onthefly.add_raw_and_finalize
       t.tar
       ~f:(fun context_fd ->
-        Context.dump_context context_index context_hash ~fd:context_fd)
+        Context_v0.dump_context context_index context_hash ~fd:context_fd)
       ~filename:Naming.(snapshot_context_file t.snapshot_tar |> file_path)
 
   let copy_cemented_block t ~file ~start_level ~end_level =
@@ -2415,19 +2415,19 @@ module Make_snapshot_exporter (Exporter : EXPORTER) : Snapshot_exporter = struct
              pruning cannot occur while the dump context is being run. For
              now, it is performed outside the lock to allow the node from
              getting stuck while waiting a merge. *)
-          let*! context_index = Context.init ~readonly:true context_dir in
+          let*! context_index = Context_v0.init ~readonly:true context_dir in
           let*! context =
-            Context.checkout_exn
+            Context_v0.checkout_exn
               context_index
               (Store.Block.context_hash export_block)
           in
           (* Retrieve predecessor block metadata hash and operations
              metadata hash from the context of the exported block *)
           let*! predecessor_block_metadata_hash =
-            Context.find_predecessor_block_metadata_hash context
+            Context_v0.find_predecessor_block_metadata_hash context
           in
           let*! predecessor_ops_metadata_hash =
-            Context.find_predecessor_ops_metadata_hash context
+            Context_v0.find_predecessor_ops_metadata_hash context
           in
           let*! () =
             Exporter.write_block_data
@@ -2629,7 +2629,7 @@ module type IMPORTER = sig
 
   val restore_context :
     t ->
-    Context.index ->
+    Context_v0.index ->
     expected_context_hash:Context_hash.t ->
     nb_context_elements:int ->
     unit tzresult Lwt.t
@@ -2716,17 +2716,17 @@ module Raw_importer : IMPORTER = struct
           return fd)
         (function
           | Unix.Unix_error (e, _, _) ->
-              fail (Context.Cannot_open_file (Unix.error_message e))
+              fail (Context_v0.Cannot_open_file (Unix.error_message e))
           | exc ->
               let msg =
                 Printf.sprintf "unknown error: %s" (Printexc.to_string exc)
               in
-              fail (Context.Cannot_open_file msg))
+              fail (Context_v0.Cannot_open_file msg))
     in
     Lwt.finalize
       (fun () ->
         let* () =
-          Context.restore_context
+          Context_v0.restore_context
             context_index
             ~expected_context_hash
             ~fd
@@ -2737,7 +2737,7 @@ module Raw_importer : IMPORTER = struct
         let*! stats = Lwt_unix.fstat fd in
         let total = stats.Lwt_unix.st_size in
         if current = total then return_unit
-        else fail (Context.Suspicious_file (total - current)))
+        else fail (Context_v0.Suspicious_file (total - current)))
       (fun () -> Lwt_unix.close fd)
 
   let load_protocol_table t =
@@ -2989,7 +2989,7 @@ module Tar_importer : IMPORTER = struct
       | None -> fail (Cannot_read {kind = `Context; path = filename})
     in
     let*! fd = Onthefly.read_raw t.tar header in
-    Context.restore_context
+    Context_v0.restore_context
       context_index
       ~expected_context_hash
       ~nb_context_elements
@@ -3205,7 +3205,7 @@ module type Snapshot_importer = sig
 
   val import :
     snapshot_path:string ->
-    ?patch_context:(Context.t -> Context.t tzresult Lwt.t) ->
+    ?patch_context:(Context_v0.t -> Context_v0.t tzresult Lwt.t) ->
     ?block:Block_hash.t ->
     ?check_consistency:bool ->
     dst_store_dir:[`Store_dir] Naming.directory ->
@@ -3362,7 +3362,7 @@ module Make_snapshot_importer (Importer : IMPORTER) : Snapshot_importer = struct
     let open Lwt_tzresult_syntax in
     (* Start by committing genesis *)
     let* genesis_ctxt_hash =
-      Context.commit_genesis
+      Context_v0.commit_genesis
         context_index
         ~chain_id
         ~time:genesis.Genesis.time
@@ -3406,7 +3406,7 @@ module Make_snapshot_importer (Importer : IMPORTER) : Snapshot_importer = struct
     in
     let pred_context_hash = predecessor_header.shell.context in
     let* predecessor_context =
-      let*! o = Context.checkout context_index pred_context_hash in
+      let*! o = Context_v0.checkout context_index pred_context_hash in
       match o with
       | Some ch -> return ch
       | None -> fail (Inconsistent_context pred_context_hash)
@@ -3504,7 +3504,7 @@ module Make_snapshot_importer (Importer : IMPORTER) : Snapshot_importer = struct
         user_expected_block
     in
     let*! context_index =
-      Context.init ~readonly:false ?patch_context dst_context_dir
+      Context_v0.init ~readonly:false ?patch_context dst_context_dir
     in
     (* Restore context *)
     let* (block_data, genesis_context_hash, block_validation_result) =
@@ -3594,7 +3594,7 @@ module Make_snapshot_importer (Importer : IMPORTER) : Snapshot_importer = struct
             ~history_mode)
     in
     let* () = reading_thread in
-    let*! () = Context.close context_index in
+    let*! () = Context_v0.close context_index in
     let*! () = Event.(emit import_success snapshot_path) in
     let*! () = close snapshot_importer in
     return_unit

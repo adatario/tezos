@@ -194,7 +194,7 @@ type chain_store
     in readonly (e.g. started by an external validator) and we want to
     prevent writing in the context. {b Warning} passing this argument
     will initialize the context in readonly.
-      Default: {!Context.commit_genesis} is called with [genesis]
+      Default: {!Context_v0.commit_genesis} is called with [genesis]
 
     @param history_mode the history mode used throughout the store. If
     a directory already exists and the given [history_mode] is
@@ -210,7 +210,7 @@ type chain_store
       Default: false
 *)
 val init :
-  ?patch_context:(Context.t -> Context.t tzresult Lwt.t) ->
+  ?patch_context:(Context_v0.t -> Context_v0.t tzresult Lwt.t) ->
   ?commit_genesis:(chain_id:Chain_id.t -> Context_hash.t tzresult Lwt.t) ->
   ?history_mode:History_mode.t ->
   ?readonly:bool ->
@@ -249,7 +249,7 @@ val directory : store -> [`Store_dir] Naming.directory
 
 (** [context_index global_store] returns the context's index
     initialized in [global_store]. *)
-val context_index : store -> Context.index
+val context_index : store -> Context_v0.index
 
 (** [allow_testchains global_store] returns true if the store is
     allowed to fork testchains. *)
@@ -450,15 +450,15 @@ module Block : sig
 
   (** [context_exn chain_store block] checkouts the context of the
       [block]. *)
-  val context_exn : chain_store -> block -> Context.t Lwt.t
+  val context_exn : chain_store -> block -> Context_v0.t Lwt.t
 
   (** [context_opt chain_store block] optional version of
       [context_exn]. *)
-  val context_opt : chain_store -> block -> Context.t option Lwt.t
+  val context_opt : chain_store -> block -> Context_v0.t option Lwt.t
 
   (** [context chain_store block] error monad version of
       [context_exn]. *)
-  val context : chain_store -> block -> Context.t tzresult Lwt.t
+  val context : chain_store -> block -> Context_v0.t tzresult Lwt.t
 
   (** [context_exists chain_store block] tests the existence of the
       [block]'s commit in the context. *)
@@ -1065,7 +1065,7 @@ module Unsafe : sig
   val restore_from_snapshot :
     ?notify:(unit -> unit Lwt.t) ->
     [`Store_dir] Naming.directory ->
-    context_index:Context.index ->
+    context_index:Context_v0.index ->
     genesis:Genesis.t ->
     genesis_context_hash:Context_hash.t ->
     floating_blocks_stream:Block_repr.block Lwt_stream.t ->
