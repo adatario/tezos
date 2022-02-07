@@ -1226,7 +1226,8 @@ module type EXPORTER = sig
     export_block:Store.Block.t ->
     unit Lwt.t
 
-  val dump_context : t -> Context_v0.index -> Context_hash.t -> int tzresult Lwt.t
+  val dump_context :
+    t -> Context_v0.index -> Context_hash.t -> int tzresult Lwt.t
 
   val copy_cemented_block :
     t -> file:string -> start_level:int32 -> end_level:int32 -> unit Lwt.t

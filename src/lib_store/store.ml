@@ -2168,7 +2168,9 @@ module Chain = struct
       ~genesis_header ~test_protocol ~expiration =
     let open Lwt_tzresult_syntax in
     let forked_block_hash = Block.hash forked_block in
-    let genesis_hash' = Context_v0.compute_testchain_genesis forked_block_hash in
+    let genesis_hash' =
+      Context_v0.compute_testchain_genesis forked_block_hash
+    in
     assert (Block_hash.equal genesis_hash genesis_hash') ;
     let* () =
       fail_unless

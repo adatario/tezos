@@ -981,7 +981,9 @@ let fix_protocol_levels context_index block_store genesis genesis_header ~head
         | None -> corrupted_store head_proto_level head_hash
         | Some savepoint -> return savepoint
       in
-      let*! o = Context_v0.checkout context_index (Block_repr.context savepoint) in
+      let*! o =
+        Context_v0.checkout context_index (Block_repr.context savepoint)
+      in
       match o with
       | None -> corrupted_store head_proto_level head_hash
       | Some context ->

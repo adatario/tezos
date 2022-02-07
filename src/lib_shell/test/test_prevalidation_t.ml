@@ -94,7 +94,8 @@ let create_prevalidation
     Internal_for_tests.CHAIN_STORE with type chain_store = unit = struct
     type chain_store = unit
 
-    let context () _block : Tezos_context.Context_v0.t tzresult Lwt.t = return ctxt
+    let context () _block : Tezos_context.Context_v0.t tzresult Lwt.t =
+      return ctxt
 
     let chain_id () = Init.chain_id
   end in

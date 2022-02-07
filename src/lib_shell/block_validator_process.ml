@@ -150,7 +150,8 @@ module Internal_validator_process = struct
        of caches passed from one block to the next one here.
     *)
     mutable cache : Environment_context.Context.block_cache option;
-    mutable preapply_result : (Block_validation.apply_result * Context_v0.t) option;
+    mutable preapply_result :
+      (Block_validation.apply_result * Context_v0.t) option;
   }
 
   let init

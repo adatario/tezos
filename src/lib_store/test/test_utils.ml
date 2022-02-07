@@ -448,7 +448,9 @@ let append_blocks ?min_lafl ?constants ?max_operations_ttl ?root ?(kind = `Full)
                 ["level"]
                 (Bytes.of_string (Format.asprintf "%ld" (Block_repr.level b)))
             in
-            let*! ctxt_hash = Context_v0.commit ~time:Time.Protocol.epoch ctxt in
+            let*! ctxt_hash =
+              Context_v0.commit ~time:Time.Protocol.epoch ctxt
+            in
             let predecessor =
               Option.value ~default:(Block_repr.predecessor b) last_opt
             in

@@ -37,7 +37,8 @@ let mem (context : Environment_context.Context.t) key =
 
 let get_protocol (context : Environment_context.Context.t) =
   match context with
-  | Context {kind = Shell_context.Context; ctxt; _} -> Context_v0.get_protocol ctxt
+  | Context {kind = Shell_context.Context; ctxt; _} ->
+      Context_v0.get_protocol ctxt
   | Context {kind = Memory_context.Context; ctxt; _} ->
       Tezos_context_memory.Context_v0.get_protocol ctxt
   | Context t ->
@@ -52,7 +53,9 @@ let add_predecessor_block_metadata_hash
       Context_v0.add_predecessor_block_metadata_hash ctxt hash
       >|= Shell_context.wrap_disk_context
   | Context {kind = Memory_context.Context; ctxt; _} ->
-      Tezos_context_memory.Context_v0.add_predecessor_block_metadata_hash ctxt hash
+      Tezos_context_memory.Context_v0.add_predecessor_block_metadata_hash
+        ctxt
+        hash
       >|= Memory_context.wrap_memory_context
   | Context t ->
       Environment_context.err_implementation_mismatch
@@ -66,7 +69,9 @@ let add_predecessor_ops_metadata_hash (context : Environment_context.Context.t)
       Context_v0.add_predecessor_ops_metadata_hash ctxt hash
       >|= Shell_context.wrap_disk_context
   | Context {kind = Memory_context.Context; ctxt; _} ->
-      Tezos_context_memory.Context_v0.add_predecessor_ops_metadata_hash ctxt hash
+      Tezos_context_memory.Context_v0.add_predecessor_ops_metadata_hash
+        ctxt
+        hash
       >|= Memory_context.wrap_memory_context
   | Context t ->
       Environment_context.err_implementation_mismatch

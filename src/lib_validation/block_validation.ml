@@ -141,7 +141,8 @@ let init_test_chain ctxt forked_header =
       let test_ctxt = Shell_context.unwrap_disk_context test_ctxt in
       let*! test_ctxt = Context_v0.add_test_chain test_ctxt Not_running in
       let*! test_ctxt = Context_v0.add_protocol test_ctxt protocol in
-      Lwt_result.ok @@ Context_v0.commit_test_chain_genesis test_ctxt forked_header
+      Lwt_result.ok
+      @@ Context_v0.commit_test_chain_genesis test_ctxt forked_header
 
 let result_encoding =
   let open Data_encoding in
@@ -418,7 +419,8 @@ module Make (Proto : Registered_protocol.T) = struct
         let*! context =
           match predecessor_ops_metadata_hash with
           | None -> Lwt.return context
-          | Some hash -> Context_v0.add_predecessor_ops_metadata_hash context hash
+          | Some hash ->
+              Context_v0.add_predecessor_ops_metadata_hash context hash
         in
         let context = Shell_context.wrap_disk_context context in
         let* (validation_result, block_data, ops_metadata) =
