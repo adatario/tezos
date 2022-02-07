@@ -24,7 +24,7 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-include Tezos_context_memory.Context
+include Tezos_context_memory.Context_v0
 
 let store_empty = empty
 

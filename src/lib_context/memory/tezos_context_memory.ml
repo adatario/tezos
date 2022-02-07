@@ -23,4 +23,4 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-module Context = Context.Make (Tezos_context_encoding.Context)
+module Context_v0 = Context.Make (Tezos_context_encoding.Context)

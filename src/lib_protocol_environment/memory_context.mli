@@ -25,7 +25,7 @@
 
 open Tezos_protocol_environment
 
-type t = Tezos_context_memory.Context.t
+type t = Tezos_context_memory.Context_v0.t
 
 type _ Context.kind += Context : t Context.kind
 

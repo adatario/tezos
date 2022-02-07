@@ -62,7 +62,7 @@ end
 
 (* memory context *)
 module M = struct
-  include Tezos_context_memory.Context
+  include Tezos_context_memory.Context_v0
 
   let make_context () = Lwt.return empty
 end

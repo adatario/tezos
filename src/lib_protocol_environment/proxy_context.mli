@@ -40,7 +40,7 @@ module M : sig
 
   type value = Bytes.t (* as in environment_context.mli *)
 
-  type tree = Tezos_context_memory.Context.tree
+  type tree = Tezos_context_memory.Context_v0.tree
 
   module type ProxyDelegate = sig
     (** Whether [mem] would return Some Dir _ *)
