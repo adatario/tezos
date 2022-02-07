@@ -282,21 +282,65 @@ module Context = struct
       | _ -> err_implementation_mismatch ~expected:impl_name ~got:t.impl_name
   end
 
+  (* In-memory context for proof *)
+  module Proof_context_v1 = struct
+    module M = struct
+      include Tezos_context_memory.Context_v1
+
+      let set_protocol = add_protocol
+
+      let fork_test_chain c ~protocol:_ ~expiration:_ = Lwt.return c
+    end
+
+    let equality_witness : (M.t, M.tree) equality_witness = equality_witness ()
+
+    let ops = (module M : S with type t = 'ctxt and type tree = 'tree)
+
+    let impl_name = "proof"
+
+    let inject : M.tree -> tree =
+     fun tree -> Tree {ops; tree; equality_witness; impl_name}
+
+    let project : tree -> M.tree =
+     fun (Tree t) ->
+      match equiv t.equality_witness equality_witness with
+      | (Some Refl, Some Refl) -> t.tree
+      | _ -> err_implementation_mismatch ~expected:impl_name ~got:t.impl_name
+  end
+
   let verify_tree_proof proof (f : tree -> (tree * 'a) Lwt.t) =
-    Proof_context.M.verify_tree_proof proof (fun tree ->
-        let tree = Proof_context.inject tree in
-        f tree >|= fun (tree, r) -> (Proof_context.project tree, r))
-    >|= function
-    | Ok (tree, r) -> Ok (Proof_context.inject tree, r)
-    | Error e -> Error e
+    if proof.Proof.version = 0 then
+      Proof_context.M.verify_tree_proof proof (fun tree ->
+          let tree = Proof_context.inject tree in
+          f tree >|= fun (tree, r) -> (Proof_context.project tree, r))
+      >|= function
+      | Ok (tree, r) -> Ok (Proof_context.inject tree, r)
+      | Error e -> Error e
+    else if proof.version = 1 then
+      Proof_context_v1.M.verify_tree_proof proof (fun tree ->
+          let tree = Proof_context_v1.inject tree in
+          f tree >|= fun (tree, r) -> (Proof_context_v1.project tree, r))
+      >|= function
+      | Ok (tree, r) -> Ok (Proof_context_v1.inject tree, r)
+      | Error e -> Error e
+    else assert false
 
   let verify_stream_proof proof (f : tree -> (tree * 'a) Lwt.t) =
-    Proof_context.M.verify_stream_proof proof (fun tree ->
-        let tree = Proof_context.inject tree in
-        f tree >|= fun (tree, r) -> (Proof_context.project tree, r))
-    >|= function
-    | Ok (tree, r) -> Ok (Proof_context.inject tree, r)
-    | Error e -> Error e
+    if proof.Proof.version = 0 then
+      Proof_context.M.verify_stream_proof proof (fun tree ->
+          let tree = Proof_context.inject tree in
+          f tree >|= fun (tree, r) -> (Proof_context.project tree, r))
+      >|= function
+      | Ok (tree, r) -> Ok (Proof_context.inject tree, r)
+      | Error e -> Error e
+    else if proof.version = 1 then
+      Proof_context_v1.M.verify_stream_proof proof (fun tree ->
+          let tree = Proof_context_v1.inject tree in
+          f tree >|= fun (tree, r) -> (Proof_context_v1.project tree, r))
+      >|= function
+      | Ok (tree, r) -> Ok (Proof_context_v1.inject tree, r)
+      | Error e -> Error e
+    else assert false
 
   type cache_key = Environment_cache.key
 
