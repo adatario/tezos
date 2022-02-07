@@ -24,7 +24,8 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-open Tezos_context_encoding.Context
+module Make (Encoding : module type of Tezos_context_encoding.Context) = struct
+open Encoding
 module Store =
   Irmin_pack_mem.Make (Node) (Commit) (Conf) (Metadata) (Contents) (Path)
     (Branch)
@@ -242,3 +243,4 @@ let get_test_chain v =
 let add_test_chain v id =
   let id = Data_encoding.Binary.to_bytes_exn Test_chain_status.encoding id in
   raw_add v current_test_chain_key id
+end
