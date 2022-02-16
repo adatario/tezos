@@ -73,10 +73,10 @@ struct
 
   type varint63 = Optint.Int63.t [@@deriving repr]
 
-  let varint63_t =
-    let module V = Repr.Binary.Varint_int63 in
-    Repr.like ~bin:(V.encode, V.decode, Obj.magic V.sizer) varint63_t
-  (* FIXME: wait for Repr modification to support size in like *)
+  (* let varint63_t =
+   *   let module V = Repr.Binary.Varint_int63 in
+   *   Repr.like ~bin:(V.encode, V.decode, Obj.magic V.sizer) varint63_t
+   * (\* FIXME: wait for Repr modification to support size in like *\) *)
 
   type tree = Impl.tree * varint63
 

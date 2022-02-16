@@ -171,8 +171,83 @@ module V0 = struct
 
   type varint63 = Optint.Int63.t [@@deriving repr]
 
+
+  module Varint_int63 = struct
+    open Optint
+
+    let unsafe_add_bytes b k = k (Bytes.unsafe_to_string b)
+
+    let str = Bytes.unsafe_of_string
+
+    let charstring_of_code : int -> string =
+      let tbl =
+        Array.init 256 (fun i ->
+            Bytes.unsafe_to_string (Bytes.make 1 (Char.chr i)))
+      in
+      fun [@inline always] i ->
+        assert (i < 256) ;
+        Array.unsafe_get tbl i
+
+    module Char = struct
+      let encode c k = k (charstring_of_code (Char.code c))
+
+      let decode buf pos =
+        pos + 1, buf.[pos]
+        [@@inline always]
+
+      (* let sizer = Repr.Size.Sizer.static 1 *)
+    end
+
+    module Int8 = struct
+      let encode i k = k (charstring_of_code i)
+
+      let decode buf pos =
+        let pos, c = (Char.decode buf pos) in
+        pos, Stdlib.Char.code c
+        [@@inline always]
+    end
+
+    let ( lsr ) = Int63.shift_right_logical
+
+    let ( lsl ) = Int63.shift_left
+
+    let ( land ) = Int63.logand
+
+    let encode (i : Int63.t) k =
+      let rec aux n k =
+        if n >= Int63.zero && n < Int63.of_int 128 then
+          k (charstring_of_code (Int63.to_int n))
+        else
+          let out = Int.logor 128 (Int63.to_int (n land Int63.of_int 127)) in
+          k (charstring_of_code out) ;
+          aux (n lsr 7) k
+      in
+      aux i k
+
+    let decode buf pos =
+      let rec aux buf n p pos =
+        let pos, i = Int8.decode buf pos in
+        let n = Int63.add n (Int63.of_int (Int.logand i 127) lsl p) in
+        if i >= 0 && i < 128 then pos, n else aux buf n (p + 7) pos
+      in
+      aux buf Int63.zero 0 pos
+
+    let sizer =
+      let of_value =
+        let rec aux len n =
+          if n >= Int63.zero && n < Int63.of_int 128 then len
+          else aux (len + 1) (n lsr 7)
+        in
+        fun n -> aux 1 n
+      in
+      let of_encoding _buf _ =
+        Stdlib.failwith "Varint_int63 size of_encoding: partially implemented"
+      in
+      Repr.Size.custom_dynamic ~of_value ~of_encoding
+  end
+
   let varint63_t =
-    let module V = Repr.Binary.Varint_int63 in
+    let module V = Varint_int63 in
     Repr.like ~bin:(V.encode, V.decode, Obj.magic V.sizer) varint63_t
   (* FIXME: wait for Repr modification to support size in like *)
 

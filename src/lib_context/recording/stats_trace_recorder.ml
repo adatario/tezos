@@ -72,27 +72,26 @@ module Writer (Impl : Tezos_context_sigs.Context.S) = struct
   module Bag_of_stats = struct
     let pack () =
       let open Irmin_pack.Stats in
-      let v = get () in
-      let cache_misses = Find.cache_misses v.finds in
+      let _v = get () in
       Def.
         {
-          finds_total = v.finds.total;
-          finds_from_staging = v.finds.from_staging;
-          finds_from_lru = v.finds.from_lru;
-          finds_from_pack_direct = v.finds.from_pack_direct;
-          finds_from_pack_indexed = v.finds.from_pack_indexed;
-          cache_misses;
-          appended_hashes = v.appended_hashes;
-          appended_offsets = v.appended_offsets;
-          inode_add = v.inode_add;
-          inode_remove = v.inode_remove;
-          inode_of_seq = v.inode_of_seq;
-          inode_of_raw = v.inode_of_raw;
-          inode_rec_add = v.inode_rec_add;
-          inode_rec_remove = v.inode_rec_remove;
-          inode_to_binv = v.inode_to_binv;
-          inode_decode_bin = v.inode_decode_bin;
-          inode_encode_bin = v.inode_encode_bin;
+          finds_total = 0;
+          finds_from_staging = 0;
+          finds_from_lru = 0;
+          finds_from_pack_direct = 0;
+          finds_from_pack_indexed = 0;
+          cache_misses = 0;
+          appended_hashes = 0;
+          appended_offsets = 0;
+          inode_add = 0;
+          inode_remove = 0;
+          inode_of_seq = 0;
+          inode_of_raw = 0;
+          inode_rec_add = 0;
+          inode_rec_remove = 0;
+          inode_to_binv = 0;
+          inode_decode_bin = 0;
+          inode_encode_bin = 0;
         }
 
     let tree () =
@@ -103,10 +102,10 @@ module Writer (Impl : Tezos_context_sigs.Context.S) = struct
           contents_hash = v.contents_hash;
           contents_find = v.contents_find;
           contents_add = v.contents_add;
-          contents_mem = v.contents_mem;
+          contents_mem = 0;
           node_hash = v.node_hash;
           node_mem = v.node_mem;
-          node_index = v.node_index;
+          node_index = 0;
           node_add = v.node_add;
           node_find = v.node_find;
           node_val_v = v.node_val_v;
@@ -460,10 +459,10 @@ struct
 
   type varint63 = Optint.Int63.t [@@deriving repr]
 
-  let varint63_t =
-    let module V = Repr.Binary.Varint_int63 in
-    Repr.like ~bin:(V.encode, V.decode, Obj.magic V.sizer) varint63_t
-  (* FIXME: wait for Repr modification to support size in like *)
+  (* let varint63_t =
+   *   let module V = Repr.Binary.Varint_int63 in
+   *   Repr.like ~bin:(V.encode, V.decode, Obj.magic V.sizer) varint63_t
+   * (\* FIXME: wait for Repr modification to support size in like *\) *)
 
   type tree = Impl.tree * varint63
 

@@ -155,7 +155,12 @@ module Make (Ff : FILE_FORMAT) = struct
     let decode = Repr.decode_bin repr |> Repr.unstage in
     let produce_row () =
       try
-        let row = read_with_prefix_exn decode chan in
+        let decode buf off_ref =
+          let off, res = decode buf !off_ref in
+          off_ref := off;
+          off, res
+        in
+        let _off, row = read_with_prefix_exn decode chan in
         Some (row, ())
       with End_of_file -> None
     in
@@ -187,7 +192,8 @@ module Make (Ff : FILE_FORMAT) = struct
     in
 
     let offset_ref = ref 0 in
-    let version = decode_i32 (really_input_string chan 4) offset_ref in
+    let off, version = decode_i32 (really_input_string chan 4) !offset_ref in
+    offset_ref := off;
     let (Version_converter vc) =
       assert (!offset_ref = 4) ;
       Ff.get_version_converter (Int32.to_int version)
@@ -195,7 +201,12 @@ module Make (Ff : FILE_FORMAT) = struct
 
     let header =
       let decode_header = Repr.(decode_bin vc.header_t |> unstage) in
-      read_with_prefix_exn decode_header chan |> vc.upgrade_header
+        let decode_header buf off_ref =
+          let off, res = decode_header buf !off_ref in
+          off_ref := off;
+          off, res
+        in
+      read_with_prefix_exn decode_header chan |> snd |> vc.upgrade_header
     in
     let seq =
       decoded_seq_of_encoded_chan_with_prefixes vc.row_t chan
