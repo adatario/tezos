@@ -26,7 +26,15 @@
 
 open Tezos_context_encoding.Context
 
-module type DB = Irmin.Generic_key.S with module Schema = Schema
+module type DB =
+  Irmin.S
+    with type key = Path.t
+     and type contents = Contents.t
+     and type branch = Branch.t
+     and type hash = Hash.t
+     and type step = Path.step
+     and type metadata = Metadata.t
+     and type Key.step = Path.step
 
 module Make_tree (Store : DB) = struct
   include Store.Tree
@@ -174,32 +182,12 @@ module Make_tree (Store : DB) = struct
   let find_tree tree key =
     Lwt.catch
       (fun () -> Store.Tree.find_tree tree key)
-      (function
-        | Dangling_hash {context; hash} ->
-            let str =
-              Fmt.str
-                "%s encountered dangling hash %a"
-                context
-                (Irmin.Type.pp Hash.t)
-                hash
-            in
-            raise (Context_dangling_hash str)
-        | exn -> raise exn)
+      (fun _ -> Stdlib.failwith "find_tree: partial backport")
 
   let add_tree tree key value =
     Lwt.catch
       (fun () -> Store.Tree.add_tree tree key value)
-      (function
-        | Dangling_hash {context; hash} ->
-            let str =
-              Fmt.str
-                "%s encountered dangling hash %a"
-                context
-                (Irmin.Type.pp Hash.t)
-                hash
-            in
-            raise (Context_dangling_hash str)
-        | exn -> raise exn)
+      (fun _ -> Stdlib.failwith "add_tree: partial backport")
 
   let length t k = length t k >|= fun i -> Some i
 

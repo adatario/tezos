@@ -121,20 +121,19 @@ let () =
       Logs.set_reporter (reporter ())
   | `Default -> ()
 
-module Store = struct
-  module Maker = Irmin_pack.Maker (Conf)
-  include Maker.Make (Schema)
-  module Schema = Tezos_context_encoding.Context.Schema
-end
-
-module Info = Store.Info
-module P = Store.Backend
+module Store =
+  Irmin_pack.Make_ext (Irmin_pack.Version.V1) (Conf) (Node) (Commit) (Metadata)
+    (Contents)
+    (Path)
+    (Branch)
+    (Hash)
+module P = Store.Private
 
 module Checks = struct
-  module Maker = struct
-    module Maker = Irmin_pack.Maker (Conf)
-    include Maker.Make (Schema)
-  end
+  module Maker (V : Irmin_pack.Version.S) =
+    Irmin_pack.Make_ext (V) (Conf) (Node) (Commit) (Metadata) (Contents) (Path)
+      (Branch)
+      (Hash)
 
   module Pack : Irmin_pack.Checks.S = Irmin_pack.Checks.Make (Maker)
 
@@ -222,21 +221,24 @@ let set_hash_version c v =
   else fail (Tezos_context_helpers.Context.Unsupported_context_hash_version v)
 
 let raw_commit ~time ?(message = "") context =
-  let info = Info.v ~author:"Tezos" (Time.Protocol.to_seconds time) ~message in
-  let parents = List.map Store.Commit.key context.parents in
+  let info =
+    Info.v ~author:"Tezos" ~date:(Time.Protocol.to_seconds time) message
+  in
+  let parents = List.map Store.Commit.hash context.parents in
   unshallow context >>= fun () ->
   Store.Commit.v context.index.repo ~info ~parents context.tree >|= fun c ->
   Store.Tree.clear context.tree ;
   c
 
-module Commit_hash = Irmin.Hash.Typed (Hash) (P.Commit_portable)
-
 let hash ~time ?(message = "") context =
-  let info = Info.v ~author:"Tezos" (Time.Protocol.to_seconds time) ~message in
+  let info =
+    Info.v ~author:"Tezos" ~date:(Time.Protocol.to_seconds time) message
+  in
   let parents = List.map (fun c -> Store.Commit.hash c) context.parents in
   let node = Store.Tree.hash context.tree in
-  let commit = P.Commit_portable.v ~parents ~node ~info in
-  Hash.to_context_hash (Commit_hash.hash commit)
+  let commit = P.Commit.Val.v ~parents ~node ~info in
+  let x = P.Commit.Key.hash commit in
+  Hash.to_context_hash x
 
 let commit ~time ?message context =
   raw_commit ~time ?message context >|= fun commit ->
@@ -266,10 +268,10 @@ type module_tree_stats = Store.Tree.counters = {
   mutable contents_hash : int;
   mutable contents_find : int;
   mutable contents_add : int;
-  mutable contents_mem : int;
+  (* mutable contents_mem : int; *)
   mutable node_hash : int;
   mutable node_mem : int;
-  mutable node_index : int;
+  (* mutable node_index : int; *)
   mutable node_add : int;
   mutable node_find : int;
   mutable node_val_v : int;
@@ -532,16 +534,9 @@ let fork_test_chain v ~protocol ~expiration =
 
 let init ?patch_context ?(readonly = false) ?(indexing_strategy = `Minimal) root
     =
+  ignore indexing_strategy ;
   let index_log_size = Option.value ~default:2_500_000 Env.(v.index_log_size) in
-  let indexing_strategy =
-    let module I = Irmin_pack.Pack_store.Indexing_strategy in
-    match indexing_strategy with
-    | `Minimal -> I.minimal
-    | `Always -> I.always
-    | `Contents -> I.minimal_with_contents
-  in
-  Store.Repo.v
-    (Irmin_pack.config ~readonly ~index_log_size ~indexing_strategy root)
+  Store.Repo.v (Irmin_pack.config ~readonly ~index_log_size root)
   >|= fun repo -> {path = root; repo; patch_context; readonly}
 
 let close index = Store.Repo.close index.repo
@@ -610,7 +605,7 @@ let set_head index chain_id commit =
 let set_master index commit =
   Store.Commit.of_hash index.repo (Hash.of_context_hash commit) >>= function
   | None -> assert false
-  | Some commit -> Store.Branch.set index.repo Store.Branch.main commit
+  | Some commit -> Store.Branch.set index.repo Store.Branch.master commit
 
 (* Context dumping *)
 
@@ -658,7 +653,7 @@ module Dumpable_context = struct
         let message = Info.message irmin_info in
         let date = Info.date irmin_info in
         (author, message, date))
-      (fun (author, message, date) -> Info.v ~author date ~message)
+      (fun (author, message, date) -> Info.v ~author ~date message)
       (obj3 (req "author" string) (req "message" string) (req "date" int64))
 
   let hash_equal (h1 : hash) (h2 : hash) = h1 = h2
@@ -667,11 +662,7 @@ module Dumpable_context = struct
     match ctxt with
     | {parents = [commit]; _} ->
         let parents = Store.Commit.parents commit in
-        let parents =
-          List.map
-            (fun k -> P.Commit.Key.to_hash k |> Hash.to_context_hash)
-            parents
-        in
+        let parents = List.map Hash.to_context_hash parents in
         List.sort Context_hash.compare parents
     | _ -> assert false
 
@@ -681,15 +672,9 @@ module Dumpable_context = struct
 
   let checkout idx h = checkout idx h
 
-  (* All commit objects in the context are indexed, so it's safe to build a
-     hash-only key referencing them. *)
-  let key_of_commit_hash h = Irmin_pack.Pack_key.v_indexed h
-
   let set_context ~info ~parents ctxt context_hash =
     let parents = List.sort Context_hash.compare parents in
-    let parents =
-      List.map (fun h -> Hash.of_context_hash h |> key_of_commit_hash) parents
-    in
+    let parents = List.map Hash.of_context_hash parents in
     Store.Commit.v ctxt.index.repo ~info ~parents ctxt.tree >>= fun c ->
     let h = Store.Commit.hash c in
     Lwt.return (Context_hash.equal context_hash (Hash.to_context_hash h))
@@ -841,73 +826,18 @@ let check_protocol_commit_consistency ~expected_context_hash
     ~given_protocol_hash ~author ~message ~timestamp ~test_chain_status
     ~predecessor_block_metadata_hash ~predecessor_ops_metadata_hash
     ~data_merkle_root ~parents_contexts =
-  let data_merkle_root = Hash.of_context_hash data_merkle_root in
-  let parents = List.map Hash.of_context_hash parents_contexts in
-  let protocol_hash_bytes = Protocol_hash.to_bytes given_protocol_hash in
-  let tree = Store.Tree.empty () in
-  Store.Tree.add tree current_protocol_key protocol_hash_bytes >>= fun tree ->
-  let test_chain_status_bytes =
-    Data_encoding.Binary.to_bytes_exn
-      Test_chain_status.encoding
-      test_chain_status
-  in
-  Store.Tree.add tree current_test_chain_key test_chain_status_bytes
-  >>= fun tree ->
-  (match predecessor_block_metadata_hash with
-  | Some predecessor_block_metadata_hash ->
-      let predecessor_block_metadata_hash_value =
-        Block_metadata_hash.to_bytes predecessor_block_metadata_hash
-      in
-      Store.Tree.add
-        tree
-        current_predecessor_block_metadata_hash_key
-        predecessor_block_metadata_hash_value
-  | None -> Lwt.return tree)
-  >>= fun tree ->
-  (match predecessor_ops_metadata_hash with
-  | Some predecessor_ops_metadata_hash ->
-      let predecessor_ops_metadata_hash_value =
-        Operation_metadata_list_list_hash.to_bytes predecessor_ops_metadata_hash
-      in
-      Store.Tree.add
-        tree
-        current_predecessor_ops_metadata_hash_key
-        predecessor_ops_metadata_hash_value
-  | None -> Lwt.return tree)
-  >>= fun tree ->
-  let info = Info.v ~author (Time.Protocol.to_seconds timestamp) ~message in
-  let data_tree = Store.Tree.pruned (`Node data_merkle_root) in
-  Store.Tree.add_tree tree current_data_key data_tree >>= fun node ->
-  let node = Store.Tree.hash node in
-  let commit_hash =
-    P.Commit_portable.v ~parents ~node ~info |> Commit_hash.hash
-  in
-  let computed_context_hash = Hash.to_context_hash commit_hash in
-  if not (Context_hash.equal expected_context_hash computed_context_hash) then
-    Lwt.return_false
-  else
-    let tree = Store.Tree.empty () in
-    Root_tree.add_test_chain tree test_chain_status >>= fun tree ->
-    Root_tree.add_protocol tree given_protocol_hash >>= fun tree ->
-    Option.fold
-      predecessor_block_metadata_hash
-      ~none:(Lwt.return tree)
-      ~some:(Root_tree.add_predecessor_block_metadata_hash tree)
-    >>= fun tree ->
-    Option.fold
-      predecessor_ops_metadata_hash
-      ~none:(Lwt.return tree)
-      ~some:(Root_tree.add_predecessor_ops_metadata_hash tree)
-    >>= fun tree ->
-    let data_t = Store.Tree.pruned (`Node data_merkle_root) in
-    Store.Tree.add_tree tree current_data_key data_t >|= fun new_tree ->
-    let node = Store.Tree.hash new_tree in
-    let ctxt_h =
-      P.Commit_portable.v ~info ~parents ~node
-      |> Commit_hash.hash |> Hash.to_context_hash
-    in
-    Context_hash.equal ctxt_h expected_context_hash
-
+  ignore
+    ( expected_context_hash,
+      given_protocol_hash,
+      author,
+      message,
+      timestamp,
+      test_chain_status,
+      predecessor_block_metadata_hash,
+      predecessor_ops_metadata_hash,
+      data_merkle_root,
+      parents_contexts ) ;
+  Stdlib.failwith "nooooooo"
 (* Context dumper *)
 
 module Context_dumper = Context_dump.Make (Dumpable_context)
