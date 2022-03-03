@@ -28,6 +28,9 @@ type t = {
   index_log_size : int;
   lru_size : int;
   auto_flush : int;
+  record_raw_actions_trace : [`No | `Yes of string];
+  record_stats_trace : [`No | `Yes of string];
+  stats_trace_message : string option;
 }
 
 (* Caps the number of entries stored in the Irmin's index. As a
@@ -48,7 +51,16 @@ let lru_size = 5_000
    will have to be garbage collected later on to save space. *)
 let auto_flush = 10_000
 
-let default = {verbosity = `Default; index_log_size; lru_size; auto_flush}
+let default =
+  {
+    verbosity = `Default;
+    index_log_size;
+    lru_size;
+    auto_flush;
+    record_raw_actions_trace = `No;
+    record_stats_trace = `No;
+    stats_trace_message = None;
+  }
 
 let max_verbosity a b =
   match (a, b) with
@@ -98,6 +110,10 @@ let v =
                         n ;
                       acc
                   | Some v -> {acc with auto_flush = v})
+              | ["actions-trace-record-directory"; path] ->
+                  {acc with record_raw_actions_trace = `Yes path}
+              | ["stats-trace-record-directory"; path] ->
+                  {acc with record_stats_trace = `Yes path}
               | unknown :: _ ->
                   Fmt.epr
                     "[WARNING] Unknow option %s detected in the environment \
@@ -111,3 +127,8 @@ let v =
                   acc))
         default
         (String.split ',' v)
+
+let v =
+  match Unix.getenv "STATS_TRACE_MESSAGE" with
+  | exception Not_found -> v
+  | msg -> {v with stats_trace_message = Some msg}
