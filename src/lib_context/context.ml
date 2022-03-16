@@ -348,7 +348,7 @@ module Make (Encoding : module type of Tezos_context_encoding.Context) = struct
     mutable node_val_v : int;
     mutable node_val_find : int;
     mutable node_val_list : int;
-    }
+  }
 
   let module_tree_stats = Store.Tree.counters
 
@@ -571,14 +571,23 @@ module Make (Encoding : module type of Tezos_context_encoding.Context) = struct
 
   (*-- Initialisation ----------------------------------------------------------*)
 
-  let init ?patch_context ?(readonly = false) root =
+  let init ?patch_context ?(readonly = false) ?(indexing_strategy = `Minimal)
+      root =
     let open Lwt_syntax in
+    let indexing_strategy =
+      Irmin_pack.Pack_store.Indexing_strategy.(
+        match indexing_strategy with
+        | `Minimal -> minimal
+        | `Always -> always
+        | `Contents -> minimal_with_contents)
+    in
     let+ repo =
       Store.Repo.v
         (Irmin_pack.config
            ~readonly
            ~index_log_size:Env.(v.index_log_size)
            ~lru_size:Env.(v.lru_size)
+           ~indexing_strategy
            root)
     in
     {path = root; repo; patch_context; readonly}

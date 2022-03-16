@@ -654,7 +654,7 @@ module Make
   (* [__ ~~ _o_] *)
 
   let init ?patch_context:user_patch_context_opt ?readonly
-      (* ?indexing_strategy *) x =
+      ?(indexing_strategy = `Minimal) x =
     let create_local_patch_context user_patch_context ctx =
       let ctx = Context_traced.wrap ctx in
       let record_and_return_output =
@@ -670,14 +670,13 @@ module Make
     in
     let record_and_return_output =
       iter_recorders
-        (fun (module R) ->
-          R.init ~readonly (* TODO: maiste (~indexing_strategy) *) x)
+        (fun (module R) -> R.init ~readonly ~indexing_strategy x)
         Fun.id
     in
     Impl.init
       ?patch_context:local_patch_context_opt
       ?readonly
-      (* ?indexing_strategy *)
+      ~indexing_strategy
       x
     >|= fun res -> record_and_return_output res |> Index_abstract.wrap
 

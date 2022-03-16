@@ -200,8 +200,7 @@ module Writer (Impl : Tezos_context_sigs.Context.MACHIN) = struct
         {utime; stime; maxrss; minflt; majflt; inblock; oublock; nvcsw; nivcsw}
 
     let now () =
-      Mtime_clock.now () |> Mtime.to_uint64_ns |> Int64.to_float
-      |> ( *. ) 1e-9
+      Mtime_clock.now () |> Mtime.to_uint64_ns |> Int64.to_float |> ( *. ) 1e-9
 
     let create store_path prev_merge_durations =
       Def.
@@ -728,7 +727,7 @@ struct
     fun _res -> direct_op_end `Commit_test_chain_genesis
 
   (** Not simple direct *)
-  let init ~readonly:_ path =
+  let init ~readonly:_ ?indexing_strategy:_ path =
     setup_writer path ;
     direct_op_begin () ;
     fun _res -> direct_op_end `Init
