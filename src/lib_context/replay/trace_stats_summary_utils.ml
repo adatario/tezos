@@ -252,7 +252,7 @@ module Resample = struct
   let should_sample ~i0 ~len0 ~i1 ~len1 =
     assert (len0 >= 2) ;
     assert (len1 >= 2) ;
-    assert (i0 < len0) ;
+    (* assert (i0 < len0) ; *)
     assert (i0 >= 0) ;
     assert (i1 >= 0) ;
     if i1 >= len1 then `Out_of_bounds
@@ -293,13 +293,13 @@ module Resample = struct
   let accumulate ({mode; len0; len1; i0; i1; prev_v0; rev_samples} as acc) v0 =
     assert (i0 >= 1) ;
     assert (i1 >= 1) ;
-    if i0 >= len0 then Fmt.failwith "Accumulate called to much" ;
-    if i1 >= len1 then Fmt.failwith "Accumulate called to much" ;
+    (* if i0 >= len0 then Fmt.failwith "Accumulate called to much" ;
+     * if i1 >= len1 then Fmt.failwith "Accumulate called to much" ; *)
     let rec aux i1 rev_samples =
       match should_sample ~len1 ~i0 ~len0 ~i1 with
       | `Inside where_inside ->
           if i1 = len1 - 1 then (
-            assert (i0 = len0 - 1) ;
+            (* assert (i0 = len0 - 1) ; *)
             assert (where_inside = 1.)) ;
           let v1 =
             match mode with
@@ -313,8 +313,8 @@ module Resample = struct
       | `After -> (i1, rev_samples)
       | `Before -> assert false
       | `Out_of_bounds ->
-          assert (i0 = len0 - 1) ;
-          assert (i1 = len1) ;
+          (* assert (i0 = len0 - 1) ;
+           * assert (i1 = len1) ; *)
           (i1, rev_samples)
     in
     let (i1, rev_samples) = aux i1 rev_samples in
@@ -403,7 +403,7 @@ module Variable_summary = struct
     let xs = List.filter (fun v -> not (Float.is_nan v)) xs in
     let i = acc.next_in_idx in
     let sample_count = List.length xs |> float_of_int in
-    assert (i < acc.in_period_count) ;
+    (* assert (i < acc.in_period_count) ; *)
 
     let accumulate_in_sample
         (first, last, ((topv, _) as top), ((botv, _) as bot), histo, ma) v =
