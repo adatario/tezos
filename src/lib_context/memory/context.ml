@@ -202,6 +202,8 @@ module Make (Encoding : module type of Tezos_context_encoding.Context) = struct
     let+ commit = raw_commit ~time ?message context in
     Hash.to_context_hash (Store.Commit.hash commit)
 
+  let gc _index _context_hash = Lwt.return_unit
+
   (*-- Generic Store Primitives ------------------------------------------------*)
 
   let data_key key = current_data_key @ key
