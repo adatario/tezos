@@ -260,12 +260,68 @@ module Make (Encoding : module type of Tezos_context_encoding.Context) = struct
     let commit = P.Commit_portable.v ~parents ~node ~info in
     Hash.to_context_hash (Commit_hash.hash commit)
 
+   let finalise_gc_and_log repo context_hash =
+    let open Lwt_syntax in
+    let catch_errors error =
+       let error_msg =
+         match error with
+         | Irmin.Closed -> "Closed"
+         | Irmin_pack.RO_not_allowed -> "RO_not_allowed"
+         | Irmin_pack_unix.Errors.Pack_error error ->
+            (
+                 Fmt.str "Pack_error: %a" Irmin_pack_unix.Errors.pp_base_error error
+            )
+         | Unix.Unix_error (err, s1, s2) ->
+             let pp = Irmin.Type.pp Irmin_pack_unix.Io.Unix.misc_error_t in
+             Fmt.str "Unix_error: %a" pp (err, s1, s2)
+         | exn -> raise exn
+       in
+       Format.printf "Finalising Gc resulted in error %s@." error_msg ;
+       Lwt.return_unit
+     in
+     Lwt.catch
+       (fun () ->
+         let c0 = Mtime_clock.counter () in
+         let* wait = Store.Gc.finalise_exn ~wait:false repo in
+         let span = Mtime_clock.count c0 |> Mtime.Span.to_ms in
+         let () = match wait with | `Finalised stats ->
+           Format.printf
+             "Gc ended on commit %a, gc took %.4fms finalisation %.4fms@."
+             Context_hash.pp
+             context_hash
+             stats.Store.Gc.duration
+             span
+         | _ -> ()
+         in
+         Lwt.return_unit)
+       catch_errors
+
   let commit ~time ?message context =
     let open Lwt_syntax in
-    let+ commit = raw_commit ~time ?message context in
-    Hash.to_context_hash (Store.Commit.hash commit)
+    let* commit = raw_commit ~time ?message context in
+    let hash = Hash.to_context_hash (Store.Commit.hash commit) in
+    let+ () = finalise_gc_and_log context.index.repo hash in
+    hash
 
-  let gc _index _context_hash = Lwt.return_unit
+  let gc index context_hash =
+     let open Lwt_syntax in
+     let repo = index.repo in
+     let* o =
+       Store.Commit.of_hash index.repo (Hash.of_context_hash context_hash)
+     in
+     match o with
+     | None -> assert false
+     | Some commit ->
+         let commit_key = Store.Commit.key commit in
+         let c0 = Mtime_clock.counter () in
+         let* _ = Store.Gc.start_exn repo commit_key in
+         let span = Mtime_clock.count c0 |> Mtime.Span.to_ms in
+         Format.printf
+           "Trigger GC for commit %a, it took %.4fms@."
+           Context_hash.pp
+           context_hash
+           span ;
+         Lwt.return_unit
 
   (*-- Generic Store Primitives ------------------------------------------------*)
 
