@@ -36,7 +36,10 @@ type t = {
   lru_size : int;
   auto_flush : int;
   indexing_strategy : indexing_strategy;
-}
+  record_raw_actions_trace : [`No | `Yes of string];
+  record_stats_trace : [`No | `Yes of string];
+  stats_trace_message : string option;
+  }
 
 (* Caps the number of entries stored in the Irmin's index. As a
    trade-off, increasing this value will delay index merges, and thus,
@@ -63,6 +66,9 @@ let default =
     lru_size;
     auto_flush;
     indexing_strategy = `Minimal;
+    record_raw_actions_trace = `No;
+    record_stats_trace = `No;
+    stats_trace_message = None;
   }
 
 let max_verbosity a b =
@@ -123,6 +129,10 @@ let v =
                          Expected one of { 'always', 'minimal' }."
                         x ;
                       acc)
+              | ["actions-trace-record-directory"; path] ->
+                  {acc with record_raw_actions_trace = `Yes path}
+              | ["stats-trace-record-directory"; path] ->
+                  {acc with record_stats_trace = `Yes path}
               | unknown :: _ ->
                   Fmt.epr
                     "[WARNING] Unknow option %s detected in the environment \

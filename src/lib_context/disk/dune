@@ -21,6 +21,7 @@
   tezos-context.encoding
   tezos-context.disk_sigs
   tezos-context.memory
+  tezos-context.recording
   tezos-context.dump)
  (flags
   (:standard)
