@@ -26,57 +26,6 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-module type TEZOS_CONTEXT_UNIX = sig
-  type error +=
-    | Cannot_create_file of string
-    | Cannot_open_file of string
-    | Cannot_find_protocol
-    | Suspicious_file of int
-
-  include
-    Tezos_context_sigs.Context.TEZOS_CONTEXT
-      with type memory_context_tree := Tezos_context_memory.Context.tree
-
-  (** Sync the context with disk. Only useful for read-only instances.
-      Does not fail when the context is not in read-only mode. *)
-  val sync : index -> unit Lwt.t
-
-  (** An Irmin context corresponds to an in-memory overlay (corresponding
-      to the type {!tree}) over some on-disk data. Writes are buffered in
-      the overlay temporarily. Calling [flush] performs these writes on
-      disk and returns a context with an empty overlay. *)
-  val flush : t -> t Lwt.t
-
-  (** {2 Context dumping} *)
-
-  (** [dump_context] is used to export snapshots of the context at given hashes. *)
-  val dump_context :
-    index ->
-    Context_hash.t ->
-    fd:Lwt_unix.file_descr ->
-    on_disk:bool ->
-    progress_display_mode:Animation.progress_display_mode ->
-    int tzresult Lwt.t
-
-  (** Rebuild a context from a given snapshot. *)
-  val restore_context :
-    index ->
-    expected_context_hash:Context_hash.t ->
-    nb_context_elements:int ->
-    fd:Lwt_unix.file_descr ->
-    legacy:bool ->
-    in_memory:bool ->
-    progress_display_mode:Animation.progress_display_mode ->
-    unit tzresult Lwt.t
-
-  (** Offline integrity checking and statistics for contexts. *)
-  module Checks : sig
-    module Pack : Irmin_pack_unix.Checks.S
-
-    module Index : Index.Checks.S
-  end
-end
-
 (** Tezos - Versioned, block indexed (key x value) store *)
 module Make (Encoding : module type of Tezos_context_encoding.Context) :
-  TEZOS_CONTEXT_UNIX
+  Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX

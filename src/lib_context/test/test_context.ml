@@ -686,7 +686,7 @@ end
 module Make_unix (Tag : sig
   val tag : string
 end)
-(Context : Tezos_context_disk.TEZOS_CONTEXT_UNIX) =
+(Context : Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX) =
 struct
   open Context
 

@@ -23,34 +23,53 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(** Context comes with two variants: [Context] and [Context_binary] with
-    different tradeoffs.
+module type TEZOS_CONTEXT_UNIX = sig
+  type error +=
+    | Cannot_create_file of string
+    | Cannot_open_file of string
+    | Cannot_find_protocol
+    | Suspicious_file of int
 
-    Both have different Merkle tree representations (i.e. when presented the
-    same data, they don't produce the same hashes).
+  include
+    Tezos_context_sigs.Context.TEZOS_CONTEXT
+      with type memory_context_tree := Tezos_context_memory.Context.tree
 
-    [lib_context] represents directories as a structured tree of inodes, instead
-    of a flat list of files, to get efficient copy-on-write and optimised read
-    patterns.
+  (** Sync the context with disk. Only useful for read-only instances.
+      Does not fail when the context is not in read-only mode. *)
+  val sync : index -> unit Lwt.t
 
-    The context variants differ by the branching factors used for these inode
-    trees:
+  (** An Irmin context corresponds to an in-memory overlay (corresponding
+      to the type {!tree}) over some on-disk data. Writes are buffered in
+      the overlay temporarily. Calling [flush] performs these writes on
+      disk and returns a context with an empty overlay. *)
+  val flush : t -> t Lwt.t
 
-    - [Context] uses a branching factor of 32;
-    - [Context_binary] uses a branching factor of 2.
+  (** {2 Context dumping} *)
 
-    To represent a large directory, [Context] uses less but larger inodes than
-    [Context_binary].
+  (** [dump_context] is used to export snapshots of the context at given hashes. *)
+  val dump_context :
+    index ->
+    Context_hash.t ->
+    fd:Lwt_unix.file_descr ->
+    on_disk:bool ->
+    progress_display_mode:Animation.progress_display_mode ->
+    int tzresult Lwt.t
 
-    As persisting inodes on disk have an overhead (i.e. the serialisation of an
-    inode is prefixed by its 32 byte hash), [Context] is thus optimised for
-    storing a large quantity of data on disk.
+  (** Rebuild a context from a given snapshot. *)
+  val restore_context :
+    index ->
+    expected_context_hash:Context_hash.t ->
+    nb_context_elements:int ->
+    fd:Lwt_unix.file_descr ->
+    legacy:bool ->
+    in_memory:bool ->
+    progress_display_mode:Animation.progress_display_mode ->
+    unit tzresult Lwt.t
 
-    On the opposite, as the inodes in Merkle proofs contain the hashes of the
-    shallow siblings, [Context_binary] is thus optimised for producing smaller
-    Merkle proofs. *)
+  (** Offline integrity checking and statistics for contexts. *)
+  module Checks : sig
+    module Pack : Irmin_pack_unix.Checks.S
 
-module Context_binary = Context.Make (Tezos_context_encoding.Context_binary)
-
-(** The context of a tezos node. Persisted to disk. *)
-module Context = Context.Make (Tezos_context_encoding.Context)
+    module Index : Index.Checks.S
+  end
+end
