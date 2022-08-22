@@ -173,9 +173,9 @@ module type S = sig
 
   val merkle_tree :
     context ->
-    Block_services.merkle_leaf_kind ->
+    Tezos_context_sigs.Context.Proof_types.merkle_leaf_kind ->
     string list ->
-    Block_services.merkle_tree output
+    Tezos_context_sigs.Context.Proof_types.merkle_tree output
 
   val find_predecessor_block_metadata_hash :
     context -> Block_metadata_hash.t option output

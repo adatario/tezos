@@ -109,14 +109,15 @@ module V0 = struct
 
   type time_protocol = int64 [@@deriving repr]
 
-  type merkle_leaf_kind = Block_services.merkle_leaf_kind
+  type merkle_leaf_kind =
+    Tezos_context_sigs.Context.Proof_types.merkle_leaf_kind
 
   let merkle_leaf_kind_t =
     Repr.enum
       "merkle_leaf_kind"
       [
-        ("Hole", Block_services.Hole);
-        ("Raw_context", Block_services.Raw_context);
+        ("Hole", Tezos_context_sigs.Context.Proof_types.Hole);
+        ("Raw_context", Tezos_context_sigs.Context.Proof_types.Raw_context);
       ]
 
   type chain_id = string [@@deriving repr]
