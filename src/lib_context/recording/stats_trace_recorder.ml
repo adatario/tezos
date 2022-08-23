@@ -28,7 +28,7 @@ module Def = Stats_trace_definition
 
 (** Stats trace writer, to be instanciated from replay or from tezos-node using
     [Make] (below). *)
-module Writer (Impl : Tezos_context_sigs.Context.MACHIN) = struct
+module Writer (Impl : Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX) = struct
   let is_darwin =
     try
       match Unix.open_process_in "uname" |> input_line with
@@ -407,7 +407,7 @@ module Writer (Impl : Tezos_context_sigs.Context.MACHIN) = struct
 end
 
 module Make
-    (Impl : Tezos_context_sigs.Context.MACHIN) (Trace_config : sig
+    (Impl : Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX) (Trace_config : sig
       val prefix : string
 
       val message : string option

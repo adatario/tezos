@@ -99,15 +99,14 @@ end
 (** Seemlessly wrap [Impl] while notifying the [Recorders] of what's
     happening. *)
 module Make
-    (Impl : Tezos_context_sigs.Context.MACHIN
-              with type memory_tree = Tezos_context_memory.Context.tree)
+    (Impl : Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX
+    )
     (Recorders : sig
       module type RECORDER = Recorder.S with module Impl = Impl
 
       val l : (module RECORDER) list
     end) :
-  Tezos_context_sigs.Context.MACHIN
-    with type memory_tree = Tezos_context_memory.Context.tree = struct
+  Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX  = struct
   (** Instanciate the tree tracker *)
   module Tree_traced = Make_tracked (struct
     type t = Impl.tree
@@ -174,6 +173,10 @@ module Make
 
   type key = Impl.key
 
+  type node_key = Impl.node_key
+
+  type value_key = Impl.value_key
+
   type kinded_key = Impl.kinded_key
 
   type tree_stats = Impl.tree_stats = private {
@@ -199,7 +202,13 @@ module Make
     mutable node_val_list : int;
   }
 
-  module type S = Tezos_context_sigs.Context.TRUC
+  type error += Cannot_create_file = Impl.Cannot_create_file
+
+  type error += Cannot_open_file = Impl.Cannot_open_file
+
+  type error += Cannot_find_protocol = Impl.Cannot_find_protocol
+
+  type error += Suspicious_file = Impl.Suspicious_file
 
   module Tree = struct
     type raw = Impl.Tree.raw
@@ -811,7 +820,7 @@ module Make
     record_unhandled_direct Recorder.Equal_config @@ fun () ->
     Impl.equal_config x y
 
-  type memory_tree = Impl.memory_tree
+  (* type memory_tree = Impl.memory_tree *)
 
   let to_memory_tree x y =
     record_unhandled_direct Recorder.To_memory_tree @@ fun () ->
@@ -832,5 +841,13 @@ module Make
 
   let set_hash_version _ = assert false
 
-  let gc x y = Impl.gc (Index_abstract.unwrap x) y
+  let gc x y =
+    (* TODO: Unhandled op *)
+    Impl.gc (Index_abstract.unwrap x) y
+
+  let flush x =
+    (* TODO: Unhandled op *)
+    Impl.flush (Context_traced.unwrap x) >|= Context_traced.wrap
+
+
 end

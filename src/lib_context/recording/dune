@@ -5,6 +5,7 @@
             tezos-shell-services
             tezos-stdlib-unix
             tezos-context.encoding
+            tezos-context.disk
             tezos-context.sigs
             tezos-context.memory
             repr

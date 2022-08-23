@@ -39,7 +39,7 @@ let system_wide_now () =
   Mtime_clock.now () |> Mtime.to_uint64_ns |> Int64.to_float |> ( *. ) 1e-9
 
 module Make
-    (Impl : Tezos_context_sigs.Context.MACHIN) (Trace_config : sig
+    (Impl : Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX) (Trace_config : sig
       val prefix : string
     end) =
 struct
