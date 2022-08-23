@@ -137,8 +137,7 @@ let open_reader max_block_count path =
   (version, block_count, header, Seq.unfold aux (ops_seq, 0))
 
 module Make
-    (Context : Tezos_context_sigs.Context.MACHIN
-                 with type memory_tree = Tezos_context_memory.Context.tree)
+    (Context : Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX)
     (Raw_config : Config) =
 struct
   module type RECORDER =

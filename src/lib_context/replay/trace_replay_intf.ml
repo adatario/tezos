@@ -45,8 +45,7 @@ module type Sigs = sig
   type nonrec config = config
 
   module Make
-      (Impl : Tezos_context_sigs.Context.MACHIN
-                with type memory_tree = Tezos_context_memory.Context.tree)
+      (Impl : Tezos_context_disk_sigs.TEZOS_CONTEXT_UNIX)
       (Conf : Config) : sig
     val run : unit -> unit Lwt.t
   end
