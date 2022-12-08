@@ -76,6 +76,7 @@
 (package (name tezos-client-demo-counter))
 (package (name tezos-client-genesis))
 (package (name tezos-context))
+(package (name tezos-context-replay-bin))
 (package (name tezos-context-ops))
 (package (name tezos-crypto))
 (package (name tezos-crypto-dal))

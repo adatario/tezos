@@ -1,11 +1,15 @@
 (executable
  (name manage_stats)
+ (public_name manage_stats)
  (modules manage_stats)
+ (package tezos-context-replay-bin)
  (libraries cmdliner tezos-context.recording tezos-context.replay))
 
 (executable
   (name replay)
+  (public_name replay)
   (modules replay)
+  (package tezos-context-replay-bin)
   (libraries cmdliner
              tezos-base
              tezos-context
@@ -16,7 +20,9 @@
 
 (executable
   (name manage_actions)
+  (public_name manage_actions)
   (modules manage_actions)
+  (package tezos-context-replay-bin)
   (libraries cmdliner
 
              tezos-context.recording
