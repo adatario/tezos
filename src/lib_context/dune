@@ -6,5 +6,5 @@
  (public_name tezos-context)
  (instrumentation (backend bisect_ppx))
  (libraries
-  tezos-context.disk
+  tezos-context.disk-recorder
   tezos-context.memory))

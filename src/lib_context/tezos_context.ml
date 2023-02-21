@@ -23,7 +23,20 @@
 (*                                                                           *)
 (*****************************************************************************)
 
-(* We re-export {!Tezos_context_disk} under the name [Tezos_context] so that
-   it is the default implementation one gets when opening this module. *)
+module type TEZOS_CONTEXT_UNIX = Tezos_context_disk.TEZOS_CONTEXT_UNIX
 
-include Tezos_context_disk
+module Context_binary = Tezos_context_disk.Context_binary
+
+(** A context that records a trace. Persisted to disk. *)
+module Context = Tezos_context_disk_recorder.Make (struct
+  let raw_actions_recorder : (module Tezos_context_trace.Recorder.S) option =
+    match Sys.getenv_opt "TEZOS_CONTEXT_RAW_ACTIONS_PREFIX" with
+    | None -> None
+    | Some prefix ->
+        Some
+          (module Tezos_context_trace.Raw_actions_recorder.Make (struct
+            let prefix = prefix
+          end))
+
+  let l = List.filter_map Fun.id [ raw_actions_recorder ]
+end)
