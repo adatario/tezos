@@ -276,6 +276,18 @@ let run ~readonly input output =
           should_precheck;
           simulate;
         } ->
+        let () =
+          match Sys.getenv_opt "TEZOS_STOP_AT_BLOCK_LEVEL" with
+          | Some var ->
+              let stop_at = Int32.of_string var in
+              if block_header.shell.level > stop_at then
+                let () =
+                  Format.printf "Validation limit reached (level %ld)@." stop_at
+                in
+                assert false
+              else ()
+          | None -> ()
+        in
         let*! () = Events.(emit validation_request block_header) in
         let*! block_application_result =
           let* predecessor_context =
