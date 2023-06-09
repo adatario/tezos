@@ -763,7 +763,9 @@ let launch (cctxt : Protocol_client_context.full) (parameters : parameters)
       >>=? fun () ->
       incr injected ;
       let stop = Mtime_clock.elapsed () in
-      let elapsed = Mtime.Span.(to_s stop -. to_s start) in
+      let elapsed =
+        1e-9 *. Mtime.Span.(to_float_ns stop -. to_float_ns start)
+      in
       let remaining = dt -. elapsed in
       (if remaining <= 0.0 then
        cctxt#warning

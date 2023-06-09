@@ -213,7 +213,7 @@ let generate_with_animation ppf target =
         (function
           | Not_found -> Lwt.return @@ Error count | exc -> Lwt.fail exc))
     ~on_retry:(fun time count ->
-      let ms = int_of_float (Mtime.Span.to_ms time) in
+      let ms = int_of_float (1e-6 *. Mtime.Span.to_float_ns time) in
       let count =
         if ms <= 1 then max 10 (count * 10) else count * duration / ms
       in

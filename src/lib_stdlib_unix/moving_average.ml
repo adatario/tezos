@@ -53,7 +53,10 @@ let worker_loop state () =
     let* () = sleep in
     let sleep = Lwt_unix.sleep state.refresh_interval in
     let now = Mtime_clock.elapsed () in
-    let elapsed = int_of_float Mtime.Span.(to_ms now -. to_ms time_at_entry) in
+    let elapsed =
+      int_of_float
+      @@ (1e-6 *. Mtime.Span.(to_float_ns now -. to_float_ns time_at_entry))
+    in
     Inttbl.iter
       (fun _ c ->
         c.average <-
