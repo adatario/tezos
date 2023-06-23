@@ -25,6 +25,8 @@
 
 (** See [src/lib_context/tezos_context.ml] for some information. *)
 
+module type TEZOS_CONTEXT_MEMORY = Context.TEZOS_CONTEXT_MEMORY
+
 (** Variant of [Tezos_context.Context_binary] purely in-memory. *)
 module Context_binary = Context.Make (Tezos_context_encoding.Context_binary)
 
